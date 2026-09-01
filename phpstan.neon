@@ -1,0 +1,21 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+
+    paths:
+        - app
+        - database
+        - config
+        - routes
+
+    # Ratchet target: raise a level at a time as the codebase grows.
+    # Level 5 is the practical floor for a Laravel app that leans on
+    # Eloquent's dynamic properties; see docs/01-ARCHITECTURE.md section 7.
+
+    ignoreErrors:
+        # Eloquent magic: dynamic attributes resolved from the schema, which
+        # static analysis cannot see without generated model docblocks.
+        - identifier: property.notFound
+          path: app/Domain/*/Models/*.php
