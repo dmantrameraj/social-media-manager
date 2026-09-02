@@ -118,6 +118,7 @@ class Tenant extends Model
         return $this->hasMany(self::class, 'parent_tenant_id');
     }
 
+    /** @return BelongsToMany<User, $this, TenantUser, 'pivot'> */
     public function users(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'tenant_user')

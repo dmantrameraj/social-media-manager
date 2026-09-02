@@ -50,5 +50,26 @@ Schedule::command(
     ->withoutOverlapping(2)
     ->runInBackground();
 
+/*
+ | Every ten minutes: a reservation stranded by a dead worker costs a tenant
+ | real spending power, so it should not sit for an hour.
+ */
+Schedule::command('ai:sweep-reservations')
+    ->everyTenMinutes()
+    ->withoutOverlapping(5)
+    ->runInBackground();
+
+/*
+ | Hourly, not daily: autopilot cadences are per brand and spread across the
+ | week, so a daily run would bunch every brand into one moment.
+ */
+Schedule::command('ai:run-autopilot')
+    ->hourly()
+    ->withoutOverlapping(30)
+    ->runInBackground();
+
+// Snapshots hold customer business content, so they age out on a schedule.
+Schedule::command('ai:purge-snapshots')->dailyAt('03:40');
+
 Schedule::command('queue:prune-failed --hours=336')->daily();
 Schedule::command('model:prune')->daily();

@@ -1,7 +1,8 @@
 # Phase 4 — AI
 
 **Date:** 2026-09-02
-**Status:** Core built and verified. Autopilot and the remaining features outstanding.
+**Status:** Complete, apart from the UI. All twelve features, autopilot, and the
+maintenance commands are built and verified.
 
 ---
 
@@ -121,14 +122,51 @@ Properties proven by test:
   against `FakeAiProvider`. The adapter is written to the documented SDK surface but has
   not been exercised against the real service — set the key and run one real generation
   before trusting it.
-- **Autopilot** — deliberately last, per the roadmap. When built it must enter the same
-  workflow at `DRAFT` and traverse the same approval gates; it cannot bypass client
-  approval.
-- **Reservation sweeper** — `ai.reservation_ttl` is configured but nothing consumes it, so
-  a crashed worker's reservation is not yet auto-released.
-- **Snapshot purge** — `AiGeneration::snapshotsExpired()` exists; the scheduled command
-  that calls it does not.
 - **UI** — no Brand Brain editor and no generation surface in the composer.
+
+## 5. Autopilot
+
+Built, with one property that is load-bearing and tested from several angles:
+**autopilot creates posts at `DRAFT` and has no path to `SCHEDULED`.** It does not set
+approval state. Everything it produces traverses the same `PostStatusMachine` and the same
+client-approval gate as human-authored content.
+
+That is not a limitation to be relaxed later. An agency's client did not agree to let a
+model post on their behalf unreviewed, and a feature that quietly bypassed approval would
+be the fastest way to lose an account.
+
+Gating, all tested:
+
+| Gate | Behaviour |
+|---|---|
+| Per-brand opt-in | `enabled` defaults false — never runs for a brand nobody switched on |
+| Global kill switch | `config('features.autopilot')`, independent of any tenant setting |
+| Plan entitlement | `ai.autopilot` must be enabled |
+| Tenant status | A suspended tenant does not get free generation |
+| Brand status | Archived brands are skipped |
+| Credits | Running dry is a skip, not a crash |
+
+Every generated post carries `source = 'ai'` and an audit entry, so provenance is never
+ambiguous. Cadence is spread across the week rather than firing a week of drafts at once —
+a client seeing seven drafts appear in one minute reads as a malfunction.
+
+Failures are caught broadly and deliberately: credits, entitlement and provider errors all
+mean the same thing here — this brand gets nothing this run, and the sweep continues. One
+broken brand must not halt every other, and the clock still advances so it cannot
+monopolise future runs.
+
+## 6. Maintenance commands
+
+**`ai:sweep-reservations`** (every ten minutes) returns credits held by generations that
+never finished. A worker killed mid-generation leaves credits neither spent nor available,
+so without this the tenant slowly and permanently loses spending power with nothing to show
+for it. Idempotent via the ledger's idempotency key, and it runs platform-wide rather than
+per tenant.
+
+**`ai:purge-snapshots`** (daily) clears request/response snapshots past
+`ai.snapshot_retention_days`. The snapshots hold customer business content; the generation
+**row survives**, so token counts and cost per tenant stay measurable after the content is
+gone.
 
 ## 4. Cost note
 
