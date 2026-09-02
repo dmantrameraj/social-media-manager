@@ -32,11 +32,31 @@ final class EntitlementResolver
             return $this->resolve($tenant, $key);
         }
 
-        return Cache::remember(
-            $this->cacheKey($tenant, $key),
+        $cacheKey = $this->cacheKey($tenant, $key);
+
+        /*
+         | Only scalars cross the cache boundary -- see Entitlement::toCacheArray().
+         | Caching the object itself writes cleanly and then reads back as
+         | __PHP_Incomplete_Class, because `cache.serializable_classes` is false
+         | by default in Laravel 13. That fatals here at the return type, and it
+         | does so on every cache store except `array`, which is what the test
+         | suite uses -- so it is invisible to tests and total in production.
+         */
+        $cached = Entitlement::fromCacheArray(Cache::get($cacheKey));
+
+        if ($cached instanceof Entitlement) {
+            return $cached;
+        }
+
+        $entitlement = $this->resolve($tenant, $key);
+
+        Cache::put(
+            $cacheKey,
+            $entitlement->toCacheArray(),
             (int) config('entitlements.cache.ttl', 3600),
-            fn (): Entitlement => $this->resolve($tenant, $key),
         );
+
+        return $entitlement;
     }
 
     public function allows(Tenant $tenant, string $key, int $requested = 1): bool

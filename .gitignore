@@ -32,3 +32,6 @@ Thumbs.db
 !/storage/app/private/.gitkeep
 /database/*.sqlite
 /database/*.sqlite-journal
+
+# Machine-specific tooling config (launch.json pins an absolute PHP path).
+.claude/

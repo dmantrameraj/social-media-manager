@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+use App\Domain\Billing\Entitlements\Entitlement;
 use App\Domain\Billing\Entitlements\EntitlementResolver;
+use App\Domain\Billing\Entitlements\Enums\EntitlementType;
 use App\Domain\Billing\Entitlements\Exceptions\EntitlementExceeded;
 use App\Domain\Customers\Models\Customer;
 use App\Domain\Tenancy\Models\Tenant;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -183,4 +186,75 @@ it('counts usage per tenant, never across them', function (): void {
 it('rejects an unknown entitlement key rather than granting no limit', function (): void {
     expect(fn () => $this->resolver->value($this->tenant, 'brands.maximum'))
         ->toThrow(InvalidArgumentException::class);
+});
+
+// -------------------------------------------------------------- cache safety
+
+/*
+ | Regression: entitlements used to be cached as a serialized Entitlement
+ | object. That is unreadable on every real cache store, because Laravel 13
+ | ships `cache.serializable_classes => false` -- unserialize is called with
+ | `allowed_classes: false`, so the object comes back as __PHP_Incomplete_Class
+ | and fatals against the `: Entitlement` return type. Brands, billing and every
+ | limit check 500'd on the second request.
+ |
+ | The whole test suite missed it because the `array` store defaults to
+ | `serialize => false` and hands objects back by reference, so nothing was ever
+ | serialized. These tests turn serialization on to close that gap.
+ */
+describe('cache round trip on a serializing store', function (): void {
+    beforeEach(function (): void {
+        config()->set('cache.stores.array.serialize', true);
+        config()->set('cache.serializable_classes', false);
+        config()->set('entitlements.cache.enabled', true);
+
+        // Rebuild the store so the new config is actually applied.
+        app('cache')->forgetDriver('array');
+
+        $this->resolver = app(EntitlementResolver::class);
+    });
+
+    it('survives a cache round trip when the store refuses to unserialize classes', function (): void {
+        subscribe($this->tenant, makePlanWithFeature('brands.max', 'limit', 25));
+
+        $first = $this->resolver->value($this->tenant, 'brands.max');
+        $second = $this->resolver->value($this->tenant, 'brands.max'); // served from cache
+
+        expect($second)->toBeInstanceOf(Entitlement::class)
+            ->and($second->value)->toBe($first->value)
+            ->and($second->type)->toBe($first->type)
+            ->and($second->source)->toBe('plan')
+            ->and($second->limit())->toBe(25);
+    });
+
+    it('never writes a PHP object into the cache', function (): void {
+        subscribe($this->tenant, makePlanWithFeature('brands.max', 'limit', 25));
+
+        $this->resolver->value($this->tenant, 'brands.max');
+
+        $raw = Cache::get(
+            config('entitlements.cache.prefix', 'entitlements').':'.$this->tenant->getKey().':brands.max'
+        );
+
+        expect($raw)->toBeArray('Entitlements must be cached as scalars, not as a serialized object.');
+    });
+
+    it('treats an unreadable cache entry as a miss instead of fatalling', function (): void {
+        subscribe($this->tenant, makePlanWithFeature('brands.max', 'limit', 25));
+
+        // Exactly what a pre-fix deploy leaves behind: a cache entry that reads
+        // back as __PHP_Incomplete_Class.
+        Cache::put(
+            config('entitlements.cache.prefix', 'entitlements').':'.$this->tenant->getKey().':brands.max',
+            new Entitlement(
+                'brands.max',
+                EntitlementType::Limit,
+                25,
+                'plan',
+            ),
+            3600,
+        );
+
+        expect($this->resolver->value($this->tenant, 'brands.max')->limit())->toBe(25);
+    });
 });

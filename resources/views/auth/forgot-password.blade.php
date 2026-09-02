@@ -1,4 +1,5 @@
 @extends('layouts.auth')
+@section('title', 'Reset your password')
 @section('content')
 <h2>Reset your password</h2>
 <form method="POST" action="{{ route('password.email') }}">

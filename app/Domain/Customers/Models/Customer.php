@@ -9,6 +9,7 @@ use App\Domain\Identity\Models\CustomerPortalUser;
 use App\Domain\Identity\Models\User;
 use App\Domain\Media\Models\Media;
 use App\Domain\Media\Models\MediaFolder;
+use App\Domain\Publishing\Models\Post;
 use App\Domain\Tenancy\Concerns\BelongsToTenant;
 use App\Policies\CustomerPolicy;
 use Database\Factories\CustomerFactory;
@@ -130,6 +131,12 @@ class Customer extends Model
     public function mediaFolders(): HasMany
     {
         return $this->hasMany(MediaFolder::class);
+    }
+
+    /** @return HasMany<Post, $this> */
+    public function posts(): HasMany
+    {
+        return $this->hasMany(Post::class);
     }
 
     // ------------------------------------------------------------------ scopes

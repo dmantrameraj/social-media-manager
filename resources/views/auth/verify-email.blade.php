@@ -1,4 +1,5 @@
 @extends('layouts.auth')
+@section('title', 'Verify your email')
 @section('content')
 <h2>Verify your email</h2>
 <p>We sent a verification link to your inbox. Please click it to activate your account.</p>

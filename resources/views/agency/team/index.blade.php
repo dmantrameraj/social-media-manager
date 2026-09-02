@@ -1,0 +1,68 @@
+@extends('layouts.agency')
+
+@section('content')
+    <p class="mb-4 text-sm text-slate-600">
+        {{ $used }} of {{ $limit->isUnlimited() ? 'unlimited' : $limit->limit() }} seats used.
+    </p>
+
+    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white">
+        <table class="w-full text-sm">
+            <thead class="border-b border-slate-200 text-left text-slate-600">
+                <tr>
+                    <th scope="col" class="px-5 py-3 font-medium">Member</th>
+                    <th scope="col" class="px-5 py-3 font-medium">Email</th>
+                    <th scope="col" class="px-5 py-3 font-medium">Status</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+                @foreach ($members as $member)
+                    <tr>
+                        <td class="px-5 py-3">{{ $member->user?->name ?? 'Unknown' }}</td>
+                        <td class="px-5 py-3 text-slate-600">{{ $member->user?->email }}</td>
+                        <td class="px-5 py-3">{{ ucfirst($member->status->value) }}</td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+
+    @if ($invitations->isNotEmpty())
+        <h2 class="mt-8 mb-3 text-sm font-semibold">Pending invitations</h2>
+        <ul class="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            @foreach ($invitations as $invitation)
+                <li class="flex items-center justify-between px-5 py-3 text-sm">
+                    <span>{{ $invitation->email }}</span>
+                    <span class="text-slate-600">
+                        Expires {{ $invitation->expires_at?->diffForHumans() }}
+                    </span>
+                </li>
+            @endforeach
+        </ul>
+    @endif
+
+    @if ($canInvite)
+        <h2 class="mt-8 mb-3 text-sm font-semibold">Invite a team member</h2>
+        <form method="POST" action="{{ route('agency.team.invite') }}"
+              class="flex max-w-2xl flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-5">
+            @csrf
+            <div class="min-w-56 flex-1">
+                <label for="email" class="block text-sm font-medium">Email</label>
+                <input id="email" name="email" type="email" required value="{{ old('email') }}"
+                       class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label for="role" class="block text-sm font-medium">Role</label>
+                <select id="role" name="role"
+                        class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    @foreach ($roles as $role)
+                        <option value="{{ $role }}">{{ $role }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button type="submit"
+                    class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                Send invitation
+            </button>
+        </form>
+    @endif
+@endsection

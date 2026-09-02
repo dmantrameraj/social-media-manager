@@ -73,7 +73,12 @@ return [
     |
     */
 
-    'home' => '/home',
+    /*
+     | Where a successful login lands. Must be a real route: Fortify's default
+     | ('/home') does not exist in this application, so leaving it produced a
+     | 404 immediately after signing in.
+     */
+    'home' => '/app',
 
     /*
     |--------------------------------------------------------------------------

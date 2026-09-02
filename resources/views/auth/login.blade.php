@@ -1,4 +1,5 @@
 @extends('layouts.auth')
+@section('title', 'Sign in')
 @section('content')
 <h2>Sign in</h2>
 <form method="POST" action="{{ route('login.store') }}">

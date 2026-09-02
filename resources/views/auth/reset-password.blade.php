@@ -1,4 +1,5 @@
 @extends('layouts.auth')
+@section('title', 'Choose a new password')
 @section('content')
 <h2>Choose a new password</h2>
 <form method="POST" action="{{ route('password.update') }}">

@@ -1,0 +1,102 @@
+@php
+    /** @var \App\Domain\Platform\Services\BrandingResolver $branding */
+    $branding = app(\App\Domain\Platform\Services\BrandingResolver::class);
+
+    /*
+     | Navigation is gated by PERMISSION, not by role: a tenant that edits its
+     | own roles must not lose or gain menu items unexpectedly. A link the user
+     | cannot use is never rendered -- offering an action that then 403s is
+     | worse than not offering it.
+     */
+    $nav = collect([
+        ['route' => 'agency.dashboard', 'label' => 'Dashboard', 'permission' => null],
+        ['route' => 'agency.brands.index', 'label' => 'Brands', 'permission' => 'customers.view'],
+        ['route' => 'agency.calendar', 'label' => 'Calendar', 'permission' => 'posts.view'],
+        ['route' => 'agency.posts.create', 'label' => 'Create post', 'permission' => 'posts.create'],
+        ['route' => 'agency.media.index', 'label' => 'Media', 'permission' => 'media.view'],
+        ['route' => 'agency.team.index', 'label' => 'Team', 'permission' => 'team.view'],
+        ['route' => 'agency.billing', 'label' => 'Billing', 'permission' => 'billing.view'],
+    ])->filter(fn (array $item): bool => $item['permission'] === null
+        || auth()->user()?->can($item['permission']) === true);
+@endphp
+
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="h-full">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ isset($title) ? $title.' · ' : '' }}{{ $branding->appName() }}</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @livewireStyles
+</head>
+<body class="h-full bg-slate-50 text-slate-900 antialiased">
+
+<div class="min-h-full lg:flex">
+
+    {{-- Sidebar --}}
+    <aside class="lg:w-64 lg:shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 bg-white">
+        <div class="flex items-center gap-3 px-5 py-4 border-b border-slate-200">
+            <span class="grid h-9 w-9 place-items-center rounded-lg text-sm font-semibold text-white"
+                  style="background-color: {{ $branding->primaryColor() }}">
+                {{ $branding->initials() }}
+            </span>
+            <div class="min-w-0">
+                <p class="truncate text-sm font-semibold">{{ $branding->appName() }}</p>
+                @if ($branding->workspaceName())
+                    <p class="truncate text-xs text-slate-500">{{ $branding->workspaceName() }}</p>
+                @endif
+            </div>
+        </div>
+
+        <nav class="p-3" aria-label="Main">
+            <ul class="space-y-1">
+                @foreach ($nav as $item)
+                    @php $active = request()->routeIs($item['route']); @endphp
+                    <li>
+                        <a href="{{ route($item['route']) }}"
+                           @if ($active) aria-current="page" @endif
+                           class="block rounded-lg px-3 py-2 text-sm transition
+                                  {{ $active
+                                      ? 'bg-slate-900 text-white font-medium'
+                                      : 'text-slate-700 hover:bg-slate-100' }}">
+                            {{ $item['label'] }}
+                        </a>
+                    </li>
+                @endforeach
+            </ul>
+        </nav>
+
+        <div class="border-t border-slate-200 p-3">
+            <p class="px-3 pb-2 text-xs text-slate-500 truncate">{{ auth()->user()?->name }}</p>
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit"
+                        class="w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100">
+                    Sign out
+                </button>
+            </form>
+        </div>
+    </aside>
+
+    {{-- Main --}}
+    <div class="flex-1 min-w-0">
+        @include('agency.partials.tenant-banner')
+
+        <header class="border-b border-slate-200 bg-white px-6 py-5">
+            <h1 class="text-xl font-semibold">{{ $heading ?? ($title ?? 'Dashboard') }}</h1>
+            @isset($subheading)
+                <p class="mt-1 text-sm text-slate-600">{{ $subheading }}</p>
+            @endisset
+        </header>
+
+        <main class="p-6">
+            @include('agency.partials.flash')
+            {{ $slot ?? '' }}
+            @yield('content')
+        </main>
+    </div>
+</div>
+
+@livewireScripts
+</body>
+</html>

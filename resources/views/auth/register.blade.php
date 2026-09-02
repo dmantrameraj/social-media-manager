@@ -1,4 +1,5 @@
 @extends('layouts.auth')
+@section('title', 'Create your account')
 @section('content')
 <h2>Create your agency account</h2>
 <form method="POST" action="{{ route('register.store') }}">

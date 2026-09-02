@@ -1,4 +1,5 @@
 @extends('layouts.auth')
+@section('title', 'Two-factor authentication')
 @section('content')
 <h2>Two-factor authentication</h2>
 <form method="POST" action="{{ route('two-factor.login.store') }}">

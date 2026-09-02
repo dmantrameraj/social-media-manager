@@ -9,6 +9,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Middleware\SubstituteBindings;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -22,6 +23,23 @@ return Application::configure(basePath: dirname(__DIR__))
             'tenant.active' => EnsureTenantActive::class,
             'super-admin' => EnsureSuperAdmin::class,
         ]);
+
+        /*
+         | ResolveTenant MUST run before SubstituteBindings.
+         |
+         | Route-model binding queries the model, and the tenant global scope
+         | only applies once context exists. In the default order, binding runs
+         | first: another tenant's record is found, and the request survives to
+         | the policy check. That still denies access, but it answers 403 rather
+         | than 404 -- confirming the record exists.
+         |
+         | With this ordering the scope filters it out during binding, so a
+         | foreign record is indistinguishable from a missing one.
+         */
+        $middleware->prependToPriorityList(
+            before: SubstituteBindings::class,
+            prepend: ResolveTenant::class,
+        );
 
         /*
          | The agency surface. Order matters:

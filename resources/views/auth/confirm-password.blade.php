@@ -1,4 +1,5 @@
 @extends('layouts.auth')
+@section('title', 'Confirm your password')
 @section('content')
 <h2>Confirm your password</h2>
 <p>This is a sensitive area. Please confirm your password to continue.</p>
