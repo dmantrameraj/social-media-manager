@@ -321,6 +321,10 @@ it('keeps the tenant-owned model registry in sync with the schema', function ():
 
         // Credentials are read only by the OAuth layer, never listed to users.
         'social_app_credentials',
+
+        // Append-only usage log. Read through the admin/usage surface with an
+        // explicit tenant filter, never as a user-facing listing.
+        'ai_generations',
     ];
 
     $registeredTables = array_map(

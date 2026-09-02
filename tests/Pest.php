@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Access\Services\SyncPermissionCatalogueService;
+use App\Domain\AI\Models\BrandBrain;
 use App\Domain\Customers\Models\Customer;
 use App\Domain\Identity\Models\CustomerPortalUser;
 use App\Domain\Identity\Models\User;
@@ -99,6 +100,7 @@ function tenantOwnedModels(): array
         SocialAccount::class,
         Post::class,
         PostTarget::class,
+        BrandBrain::class,
     ];
 }
 

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\AI\Contracts\AiProviderInterface;
+use App\Domain\AI\Providers\AnthropicProvider;
+use App\Domain\AI\Providers\FakeAiProvider;
 use App\Domain\Audit\Listeners\RecordAuthenticationEvent;
 use App\Domain\Social\ProviderRegistry;
 use App\Domain\Social\Providers\Fake\FakeProvider;
@@ -38,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDatabase();
         $this->configureAuthEvents();
         $this->registerSocialProviders();
+        $this->registerAiProvider();
     }
 
     /**
@@ -55,6 +59,24 @@ class AppServiceProvider extends ServiceProvider
         if (! $this->app->isProduction()) {
             $registry->register('fake', FakeProvider::class);
         }
+    }
+
+    /**
+     * Bind the configured AI provider.
+     *
+     * Features depend on AiProviderInterface, never on a concrete vendor, so
+     * swapping providers is a config change.
+     */
+    private function registerAiProvider(): void
+    {
+        $this->app->bind(AiProviderInterface::class, function (): AiProviderInterface {
+            $key = (string) config('ai.default', 'anthropic');
+
+            return match ($key) {
+                'fake' => new FakeAiProvider,
+                default => new AnthropicProvider,
+            };
+        });
     }
 
     /**
