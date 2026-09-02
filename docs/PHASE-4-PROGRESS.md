@@ -49,9 +49,38 @@ entitlement -> reserve credits -> build prompt -> call provider -> commit/releas
 Credits are reserved **before** the provider is called, so concurrent requests cannot
 overspend, and released on failure, so a failed generation is never charged.
 
-**Features** — `CaptionFeature` and `HashtagsFeature`, each declaring only the Brand Brain
-sections it needs. A hashtag generator does not need competitor analysis, and padding the
-prompt with it costs credits and dilutes the output.
+**Features — all twelve built.** Each declares only the Brand Brain sections it needs: a
+hashtag generator does not need competitor analysis, and padding the prompt with it costs
+credits and dilutes the output.
+
+| Feature | Credits | Output |
+|---|---|---|
+| `caption` | 1 | Single caption |
+| `hashtags` | 1 | Deduped, normalised list |
+| `rewrite` | 1 | Transformed text |
+| `tone` | 1 | Transformed text |
+| `translate` | 1 | Transformed text |
+| `platform_adaptation` | 1 | Text valid for the target platform |
+| `youtube_title` | 1 | Several candidates |
+| `ideas` | 2 | Hook / angle / format objects |
+| `youtube_description` | 2 | Description, length-capped |
+| `reel_script` | 3 | Hook, scenes, call to action |
+| `blog_to_social` | 3 | Several standalone posts |
+| `monthly_plan` | 25 | Dated, platform-tagged entries |
+
+Three of them — `rewrite`, `tone`, `translate` — share a `TransformsText` trait, because
+they genuinely differ only in their instruction. Features with different output shapes
+deliberately do not use it.
+
+**`PlatformAdaptationFeature` is the one that ties AI to publishing.** Its limits come from
+`config/social.php` — the same source the provider validators read — so an adapted variant
+is valid for its destination *by construction* rather than being generated and then
+rejected at publish time. It also knows, from the capability flags, that an Instagram
+caption cannot carry a clickable link, so it stops the model writing "click the link below"
+into a dead end.
+
+**`AiFeatureRegistry`** resolves a feature key to a class through an explicit map. Keys
+arrive from requests, so deriving a class name from user input was not an option.
 
 **`FakeAiProvider`** — scriptable, so the credit accounting, brand grounding and failure
 handling are provable without an API key and without spending money on every test run.
@@ -60,9 +89,15 @@ handling are provable without an API key and without spending money on every tes
 
 | Gate | Result |
 |---|---|
-| AI suite | **18 passing** |
+| AI suite | **73 passing** (18 generation + 55 feature) |
 | Tenant isolation | **36 passing** (now covering `brand_brains`) |
 | Static analysis | PHPStan level 5, **0 errors** |
+
+Two registry tests keep the catalogue and the code honest in both directions: a feature
+with a configured price but no implementation would be offered in the UI and then fail,
+and a feature without a price would be given away. Every feature is also exercised
+end-to-end — charged its configured cost, grounded in the brand profile, leaving no
+reservation stranded.
 
 Properties proven by test:
 
@@ -86,9 +121,6 @@ Properties proven by test:
   against `FakeAiProvider`. The adapter is written to the documented SDK surface but has
   not been exercised against the real service — set the key and run one real generation
   before trusting it.
-- **Remaining features:** ideas, rewrite, tone, translate, platform adaptation, reel
-  script, YouTube title/description, blog-to-social, monthly plan. The interface and cost
-  table cover them; the classes are not written.
 - **Autopilot** — deliberately last, per the roadmap. When built it must enter the same
   workflow at `DRAFT` and traverse the same approval gates; it cannot bypass client
   approval.
