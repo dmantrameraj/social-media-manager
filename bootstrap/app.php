@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\EnsureTenantActive;
+use App\Http\Middleware\HandleImpersonation;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -60,6 +61,21 @@ return Application::configure(basePath: dirname(__DIR__))
         // portal user's access is brand-scoped rather than tenant-scoped.
         $middleware->group('portal', [
             'auth:customer',
+        ]);
+
+        /*
+         | Impersonation limits apply to the WHOLE web group, not only to the
+         | agency surface. A restriction that covers just the routes someone
+         | remembered to protect is not a restriction, and the session timeout
+         | has to hold on every route -- including ones added later by someone
+         | who has never read HandleImpersonation.
+         |
+         | Appended rather than prepended: it needs an established session and
+         | a resolved route name, so it must run after StartSession and after
+         | SubstituteBindings.
+         */
+        $middleware->web(append: [
+            HandleImpersonation::class,
         ]);
 
         $middleware->group('admin', [

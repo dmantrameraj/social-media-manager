@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Domain\Access\PermissionCatalogue;
 use App\Domain\AI\Contracts\AiProviderInterface;
 use App\Domain\AI\Providers\AnthropicProvider;
 use App\Domain\AI\Providers\FakeAiProvider;
 use App\Domain\Audit\Listeners\RecordAuthenticationEvent;
+use App\Domain\Identity\Models\User;
 use App\Domain\Social\ProviderRegistry;
 use App\Domain\Social\Providers\Fake\FakeProvider;
 use App\Support\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -40,8 +43,33 @@ class AppServiceProvider extends ServiceProvider
         $this->configureModels();
         $this->configureDatabase();
         $this->configureAuthEvents();
+        $this->registerPlatformGates();
         $this->registerSocialProviders();
         $this->registerAiProvider();
+    }
+
+    /**
+     * Platform permissions resolve through gates, not through spatie roles.
+     *
+     * spatie's permissions are team-scoped to a tenant, so a `platform.*`
+     * permission held that way would be a per-agency grant -- exactly backwards
+     * for authority that spans every agency. These are answered by
+     * is_super_admin instead, which no tenant can assign.
+     *
+     * Note there is deliberately NO Gate::before granting Super Admins every
+     * ability. Passing tenant policies automatically would mean a support
+     * engineer silently satisfies checks written to protect an agency's data.
+     * The /admin surface is authorised by EnsureSuperAdmin and these gates;
+     * reaching agency data is what impersonation is for, and that is audited.
+     */
+    private function registerPlatformGates(): void
+    {
+        foreach ($this->app->make(PermissionCatalogue::class)->platformPermissions() as $permission) {
+            Gate::define(
+                $permission,
+                static fn (mixed $user): bool => $user instanceof User && $user->isSuperAdmin(),
+            );
+        }
     }
 
     /**

@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
 /**
@@ -42,7 +43,16 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory;
 
-    use HasRoles, HasUlids, InteractsWithCustomers, Notifiable, SoftDeletes;
+    /*
+     | TwoFactorAuthenticatable supplies the QR code, recovery codes and the
+     | enabled check that Fortify's own 2FA endpoints call.
+     |
+     | Without it the feature is inert: config/fortify.php enables
+     | twoFactorAuthentication() and the columns exist, but nothing can generate
+     | a secret -- which would make the Super Admin surface permanently
+     | unreachable, because EnsureSuperAdmin demands confirmed 2FA.
+     */
+    use HasRoles, HasUlids, InteractsWithCustomers, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
 
     protected $fillable = [
         'name',

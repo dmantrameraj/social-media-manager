@@ -80,6 +80,9 @@
 
     {{-- Main --}}
     <div class="flex-1 min-w-0">
+        {{-- Above the tenant banner: knowing whose account you are in
+             outranks knowing that account's billing state. --}}
+        @include('partials.impersonation-banner')
         @include('agency.partials.tenant-banner')
 
         <header class="border-b border-slate-200 bg-white px-6 py-5">

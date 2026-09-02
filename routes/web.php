@@ -2,6 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Admin\AuditLogController;
+use App\Http\Controllers\Admin\CreditController as AdminCreditController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\EntitlementOverrideController;
+use App\Http\Controllers\Admin\FailedJobController;
+use App\Http\Controllers\Admin\ImpersonationController;
+use App\Http\Controllers\Admin\PlanController as AdminPlanController;
+use App\Http\Controllers\Admin\TenantController as AdminTenantController;
 use App\Http\Controllers\Agency\BillingController;
 use App\Http\Controllers\Agency\BrandController;
 use App\Http\Controllers\Agency\DashboardController;
@@ -10,7 +18,9 @@ use App\Http\Controllers\Agency\PostController;
 use App\Http\Controllers\Agency\SuspendedController;
 use App\Http\Controllers\Agency\TeamController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\TwoFactorEnrolmentController;
 use App\Http\Controllers\Webhook\RazorpayWebhookController;
+use App\Support\HomeRedirector;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Route;
 
@@ -19,9 +29,12 @@ use Illuminate\Support\Facades\Route;
  | repository -- it is a separate concern -- and shipping Laravel's welcome
  | splash here is worse than sending people where they were going.
  */
-Route::get('/', fn () => redirect()->route(
-    auth('web')->check() ? 'agency.dashboard' : 'login',
-))->name('home');
+Route::get('/', fn () => auth('web')->check()
+    // Same rule as the login redirect, via the same class: a user who lands
+    // somewhere different depending on which door they came through is a
+    // support ticket.
+    ? redirect(app(HomeRedirector::class)->pathFor(auth('web')->user()))
+    : redirect()->route('login'))->name('home');
 
 /*
 |--------------------------------------------------------------------------
@@ -117,3 +130,75 @@ Route::post('/webhooks/razorpay', RazorpayWebhookController::class)
         PreventRequestForgery::class,
     ])
     ->name('webhooks.razorpay');
+
+/*
+|--------------------------------------------------------------------------
+| Two-factor enrolment
+|--------------------------------------------------------------------------
+|
+| Fortify ships every 2FA endpoint but no screen to drive them. This is that
+| screen, and it is behind `auth:web` ONLY -- deliberately not `super-admin`.
+| EnsureSuperAdmin redirects here when an administrator has not enrolled, so
+| gating it on the same check would be a redirect loop.
+|
+*/
+Route::middleware(['auth:web'])
+    ->get('user/two-factor', TwoFactorEnrolmentController::class)
+    ->name('two-factor.enrol');
+
+/*
+|--------------------------------------------------------------------------
+| Super Admin
+|--------------------------------------------------------------------------
+|
+| The one surface where tenant global scopes are deliberately bypassed. Three
+| independent gates apply:
+|
+|   1. `admin` middleware  -- auth:web + EnsureSuperAdmin (which also demands
+|                             confirmed 2FA, and answers 404 rather than 403 so
+|                             the surface is not discoverable)
+|   2. a platform gate     -- checked inside every action, so a future split
+|                             into narrower staff roles is a config change
+|   3. an audit entry      -- written by the services, never by the controller
+|
+| See docs/01-ARCHITECTURE.md section 8 and docs/04-AUTH-RBAC.md section 9.
+|
+*/
+Route::middleware('admin')->prefix('admin')->name('admin.')->group(function (): void {
+
+    Route::get('/', AdminDashboardController::class)->name('dashboard');
+
+    Route::get('agencies', [AdminTenantController::class, 'index'])->name('tenants.index');
+    Route::get('agencies/create', [AdminTenantController::class, 'create'])->name('tenants.create');
+    Route::post('agencies', [AdminTenantController::class, 'store'])->name('tenants.store');
+    Route::get('agencies/{tenant}', [AdminTenantController::class, 'show'])->name('tenants.show');
+
+    Route::post('agencies/{tenant}/suspend', [AdminTenantController::class, 'suspend'])->name('tenants.suspend');
+    Route::post('agencies/{tenant}/reactivate', [AdminTenantController::class, 'reactivate'])->name('tenants.reactivate');
+
+    Route::post('agencies/{tenant}/entitlements', [EntitlementOverrideController::class, 'store'])
+        ->name('tenants.entitlements.store');
+    Route::delete('agencies/{tenant}/entitlements/{key}', [EntitlementOverrideController::class, 'destroy'])
+        ->name('tenants.entitlements.destroy');
+
+    Route::post('agencies/{tenant}/credits', [AdminCreditController::class, 'store'])->name('tenants.credits.store');
+
+    Route::post('impersonate/{user}', [ImpersonationController::class, 'store'])->name('impersonation.start');
+
+    Route::get('plans', [AdminPlanController::class, 'index'])->name('plans.index');
+    Route::get('audit', [AuditLogController::class, 'index'])->name('audit.index');
+
+    Route::get('jobs', [FailedJobController::class, 'index'])->name('jobs.index');
+    Route::post('jobs/{uuid}/retry', [FailedJobController::class, 'retry'])->name('jobs.retry');
+});
+
+/*
+ | Leaving impersonation sits OUTSIDE the admin group on purpose.
+ |
+ | While impersonating, the session's principal is the customer -- who is not a
+ | Super Admin. Putting this behind EnsureSuperAdmin would 404 the only way out
+ | and trap the administrator inside the account they were supporting.
+ */
+Route::middleware(['auth:web'])
+    ->delete('admin/impersonate', [ImpersonationController::class, 'destroy'])
+    ->name('admin.impersonation.stop');

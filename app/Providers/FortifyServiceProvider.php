@@ -9,12 +9,15 @@ use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
 use App\Domain\Identity\Models\User;
+use App\Support\HomeRedirector;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Actions\RedirectIfTwoFactorAuthenticatable;
+use Laravel\Fortify\Contracts\LoginResponse;
+use Laravel\Fortify\Contracts\TwoFactorLoginResponse;
 use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
@@ -27,9 +30,50 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::redirectUserForTwoFactorAuthenticationUsing(RedirectIfTwoFactorAuthenticatable::class);
 
+        $this->registerHomeRedirects();
         $this->registerViews();
         $this->registerAuthentication();
         $this->registerRateLimiters();
+    }
+
+    /**
+     * Send each principal to the surface they can actually use.
+     *
+     * Fortify's `home` config is one static path, so platform staff -- who
+     * usually belong to no agency -- were sent to /app and met a 403 from
+     * ResolveTenant. Login worked and landed nowhere.
+     *
+     * Both responses are bound, because a user with two-factor enabled never
+     * passes through LoginResponse at all: the challenge completes through
+     * TwoFactorLoginResponse instead. Binding only the first would fix the
+     * redirect for exactly the accounts that do not have 2FA, and leave it
+     * broken for every Super Admin, who are required to have it.
+     */
+    private function registerHomeRedirects(): void
+    {
+        $redirect = fn (Request $request) => redirect()->intended(
+            $this->app->make(HomeRedirector::class)->pathFor($request->user()),
+        );
+
+        $this->app->instance(LoginResponse::class, new class($redirect) implements LoginResponse
+        {
+            public function __construct(private $redirect) {}
+
+            public function toResponse($request)
+            {
+                return ($this->redirect)($request);
+            }
+        });
+
+        $this->app->instance(TwoFactorLoginResponse::class, new class($redirect) implements TwoFactorLoginResponse
+        {
+            public function __construct(private $redirect) {}
+
+            public function toResponse($request)
+            {
+                return ($this->redirect)($request);
+            }
+        });
     }
 
     private function registerViews(): void

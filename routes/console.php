@@ -73,3 +73,15 @@ Schedule::command('ai:purge-snapshots')->dailyAt('03:40');
 
 Schedule::command('queue:prune-failed --hours=336')->daily();
 Schedule::command('model:prune')->daily();
+
+/*
+ | Every minute, and deliberately NOT in the background.
+ |
+ | This is the signal the operations dashboard reads to decide whether the
+ | scheduler is alive at all, so it must not depend on a background process
+ | that could fail separately from schedule:run itself. It also closes
+ | impersonation sessions that outlived their ceiling.
+ */
+Schedule::command('platform:heartbeat')
+    ->everyMinute()
+    ->withoutOverlapping(2);
