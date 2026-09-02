@@ -33,6 +33,79 @@
 
         <div class="mt-4 whitespace-pre-wrap text-sm leading-relaxed">{{ $post->body }}</div>
 
+        @if ($post->media->isNotEmpty())
+            {{--
+             | The attachments, at a size a person can actually judge.
+             |
+             | Every src is a short-lived signed route, never a disk path: the
+             | files are on a private disk and the URL is useless without a
+             | portal session. Do not swap these for Storage::url().
+            --}}
+            <div class="mt-5 space-y-4 border-t border-slate-100 pt-5">
+                @foreach ($post->media as $item)
+                    @php $src = $mediaUrls[$item->getKey()] ?? null; @endphp
+
+                    @if ($src === null)
+                        @continue
+                    @endif
+
+                    <figure>
+                        @if ($item->isImage())
+                            {{-- No alt text is captured at upload yet, so the
+                                 filename is the only description available. That
+                                 is a real gap: the platforms this content is
+                                 published to support alt text, and a client using
+                                 a screen reader currently cannot review an image
+                                 at all. Recorded in the docs. --}}
+                            <img src="{{ $src }}"
+                                 alt="Attachment: {{ $item->original_name }}"
+                                 @if ($item->width && $item->height)
+                                     width="{{ $item->width }}" height="{{ $item->height }}"
+                                 @endif
+                                 loading="lazy"
+                                 class="w-full rounded-lg border border-slate-200 bg-slate-50">
+
+                        @elseif ($item->isVideo())
+                            {{-- No autoplay and no loop: a client reviewing content
+                                 decides when it starts. --}}
+                            <video src="{{ $src }}" controls preload="metadata"
+                                   class="w-full rounded-lg border border-slate-200 bg-black">
+                                Your browser cannot play this video.
+                            </video>
+
+                        @elseif ($item->mime_type === 'application/pdf')
+                            <object data="{{ $src }}" type="application/pdf"
+                                    class="h-96 w-full rounded-lg border border-slate-200">
+                                {{-- Mobile browsers routinely refuse to embed a PDF,
+                                     so the fallback has to be a real way through. --}}
+                                <p class="p-4 text-sm">
+                                    <a href="{{ $src }}" class="underline" target="_blank" rel="noopener">
+                                        Open {{ $item->original_name }}
+                                    </a>
+                                </p>
+                            </object>
+
+                        @else
+                            <a href="{{ $src }}" class="block rounded-lg border border-slate-200 p-4 text-sm underline"
+                               target="_blank" rel="noopener">
+                                {{ $item->original_name }}
+                            </a>
+                        @endif
+
+                        <figcaption class="mt-1 text-xs text-slate-500">
+                            {{ $item->original_name }}
+                            @if ($item->width && $item->height)
+                                · {{ $item->width }}&times;{{ $item->height }}
+                            @endif
+                            @if ($post->media->count() > 1)
+                                · {{ $loop->iteration }} of {{ $post->media->count() }}
+                            @endif
+                        </figcaption>
+                    </figure>
+                @endforeach
+            </div>
+        @endif
+
         @if ($post->scheduled_at)
             <p class="mt-4 border-t border-slate-100 pt-4 text-sm text-slate-600">
                 Planned for

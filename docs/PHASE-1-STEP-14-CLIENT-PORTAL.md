@@ -119,16 +119,57 @@ The Phase 1 gate criteria from docs/04-AUTH-RBAC.md §10 and docs/03-TENANCY.md 
 - A decision on a post not awaiting one is refused rather than silently re-run.
 - A portal login never establishes a `web` session.
 
-## 7. Not done
+## 7. Media previews
+
+A client approving an image post was approving copy they could not see. The post
+detail page now renders the attachments — images inline, video with controls,
+PDFs embedded with a real link fallback, anything else as a download link — in
+`sort_order`, because a carousel shown in a different order than the client
+approved is a genuine complaint and the pivot's order is the only record of the
+intent.
+
+**Files are streamed, never linked.** Media lives on a private disk, so
+`portal.media.show` serves the bytes behind three independent checks:
+
+1. a valid **signature**, so ids cannot be walked;
+2. an authenticated **portal session**, because a signed URL stays shareable
+   until it expires and a signature alone must not be enough;
+3. the file is attached to a post **this** client may see.
+
+The third is the one that matters, and it is stricter than brand assignment: a
+client must not see everything in their brand's media library, only what the
+agency actually put in a post and sent for review. It reuses `PortalPostQuery`
+rather than re-deriving the rule, so there is still one definition of what a
+client may see.
+
+**Why not `Media::temporaryUrl()`.** That method delegates to the filesystem
+driver, and the `local` driver — the default, and what shared hosting will run —
+cannot sign URLs at all; it throws. The method is currently unused, and it is a
+trap for the next person, because it is the obvious thing to reach for. A signed
+application route works on every disk. The trade-off is that bytes pass through
+PHP; on S3 this is worth revisiting so large video is served by the object store
+directly.
+
+Responses carry `X-Content-Type-Options: nosniff` and the mime type established
+by sniffing at upload — never a client-supplied header — because an "image" a
+browser decides is HTML would execute in the application's own origin. Caching is
+`private`, since this is one client's content behind a short-lived URL.
+
+## 8. Not done
 
 - **Password reset for portal users.** The `customers` broker and the
   `customer_password_reset_tokens` table are configured; there is no screen. A
   client who forgets their password currently needs the agency to re-invite them.
-- **Media previews.** Posts render text only; attached images are not shown, so a
-  client approving an image post is approving copy they cannot fully see. This
-  matters and should come before the portal is put in front of real clients.
 - **Notifications.** Nothing emails a client that something is waiting, or the
   agency that a decision was made. Both sides currently have to look.
 - **Reports.** `portal.reports.view` exists as a permission; analytics is Phase 5.
+- **No alt text.** Nothing captures alt text at upload, so image previews fall
+  back to the filename. A client who uses a screen reader currently cannot review
+  an image at all — and the platforms this content publishes to support alt text,
+  so it is missing from the published post too. This is the next thing worth
+  fixing here.
+- **Video and PDF previews are untested against real files.** The tests use a
+  faked disk with placeholder bytes, which proves the authorisation and headers
+  but not that a large MP4 streams acceptably through PHP.
 - **No browser walkthrough**, and no mobile pass — clients are the most likely of
   all three audiences to open this on a phone.

@@ -6,6 +6,7 @@ namespace App\Domain\Publishing\Models;
 
 use App\Domain\Customers\Models\Customer;
 use App\Domain\Identity\Models\User;
+use App\Domain\Media\Models\Media;
 use App\Domain\Publishing\Enums\PostStatus;
 use App\Domain\Publishing\Enums\TargetStatus;
 use App\Domain\Tenancy\Concerns\BelongsToTenant;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
@@ -83,6 +85,22 @@ class Post extends Model
     public function approvals(): HasMany
     {
         return $this->hasMany(PostApproval::class);
+    }
+
+    /**
+     * Media attached to this post, in the order the agency arranged it.
+     *
+     * Ordered in the relation rather than at each call site: a carousel shown
+     * in a different order than the client approved is a real complaint, and
+     * sort_order is the only thing that records the intent.
+     *
+     * @return BelongsToMany<Media, $this>
+     */
+    public function media(): BelongsToMany
+    {
+        return $this->belongsToMany(Media::class, 'post_media')
+            ->withPivot(['sort_order', 'role', 'post_target_id'])
+            ->orderBy('post_media.sort_order');
     }
 
     /** @param  Builder<self>  $query */

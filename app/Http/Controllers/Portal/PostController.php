@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Domain\Audit\Enums\ActorType;
 use App\Domain\Customers\Services\PortalPostQuery;
+use App\Domain\Media\Services\PortalMediaUrl;
 use App\Domain\Publishing\Enums\PostStatus;
 use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostComment;
@@ -64,7 +65,7 @@ final class PostController extends Controller
         ]);
     }
 
-    public function show(Request $request, Post $post): View
+    public function show(Request $request, Post $post, PortalMediaUrl $mediaUrl): View
     {
         $user = $request->user('customer');
 
@@ -72,7 +73,17 @@ final class PostController extends Controller
 
         return view('portal.posts.show', [
             'title' => $post->title ?: 'Post',
-            'post' => $post->load('customer', 'targets'),
+            'post' => $post->load('customer', 'targets', 'media'),
+
+            /*
+             | URLs are minted here, once, rather than in the template. Each is
+             | short-lived and signed; a client approving an image post must be
+             | able to SEE the image, which is the whole reason this page
+             | previously showed only copy.
+             */
+            'mediaUrls' => $post->media->mapWithKeys(
+                fn ($item) => [$item->getKey() => $mediaUrl->for($item)],
+            ),
 
             /*
              | clientVisible() is the boundary, applied in the QUERY. Agency

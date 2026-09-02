@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Portal\DashboardController;
+use App\Http\Controllers\Portal\MediaController;
 use App\Http\Controllers\Portal\PostController;
 use App\Http\Controllers\Portal\SessionController;
 use Illuminate\Support\Facades\Route;
@@ -52,5 +53,19 @@ Route::prefix('portal')->name('portal.')->group(function (): void {
         Route::post('content/{post}/changes', [PostController::class, 'requestChanges'])->name('posts.changes');
 
         Route::post('content/{post}/comments', [PostController::class, 'comment'])->name('posts.comment');
+
+        /*
+         | Media is streamed, never linked by path: the files sit on a private
+         | disk. `signed` is layered on top of `auth:customer` deliberately --
+         | the signature stops ids being walked, and the session stops a signed
+         | URL being useful to anyone the client forwards it to.
+         |
+         | Note this cannot use Media::temporaryUrl(): that delegates to the
+         | filesystem driver, and the `local` driver -- the default, and what
+         | shared hosting will run -- cannot sign URLs at all.
+         */
+        Route::get('media/{media}', MediaController::class)
+            ->middleware('signed')
+            ->name('media.show');
     });
 });

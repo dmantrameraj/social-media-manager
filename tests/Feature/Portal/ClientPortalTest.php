@@ -8,6 +8,8 @@ use App\Domain\Customers\Models\Customer;
 use App\Domain\Customers\Services\PortalPostQuery;
 use App\Domain\Identity\Models\CustomerPortalUser;
 use App\Domain\Identity\Models\User;
+use App\Domain\Media\Models\Media;
+use App\Domain\Media\Services\PortalMediaUrl;
 use App\Domain\Publishing\Enums\PostStatus;
 use App\Domain\Publishing\Exceptions\UnauthorizedTransition;
 use App\Domain\Publishing\Models\Post;
@@ -17,6 +19,7 @@ use App\Domain\Tenancy\Models\Tenant;
 use App\Domain\Tenancy\Services\ProvisionTenantService;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
     seedPermissions();
@@ -373,4 +376,164 @@ it('shows a client with no brand assignment nothing at all', function (): void {
     postFor($this->brand, PostStatus::ClientReview);
 
     expect(app(PortalPostQuery::class)->for($orphan->fresh())->count())->toBe(0);
+});
+
+// ----------------------------------------------------------- media previews
+
+/**
+ * A media row with a real file behind it on a faked disk.
+ *
+ * The file has to exist: the controller 404s on a missing file, which is
+ * correct (retention can purge a file a post still references) but would make
+ * every one of these tests pass for the wrong reason.
+ */
+function attachMedia(Post $post, string $mime = 'image/jpeg'): Media
+{
+    $media = Media::factory()->forCustomer($post->customer)->create([
+        'mime_type' => $mime,
+        'original_name' => 'brief.'.($mime === 'application/pdf' ? 'pdf' : 'jpg'),
+    ]);
+
+    Storage::disk($media->disk)->put($media->path, 'file-contents-here');
+
+    DB::table('post_media')->insert([
+        'tenant_id' => $post->tenant_id,
+        'post_id' => $post->getKey(),
+        'media_id' => $media->getKey(),
+        'sort_order' => 0,
+        'role' => 'primary',
+    ]);
+
+    return $media;
+}
+
+it('shows a client the images attached to a post they are reviewing', function (): void {
+    // The gap this closes: a client approving an image post was approving copy
+    // they could not actually see.
+    Storage::fake('local');
+
+    $post = postFor($this->brand, PostStatus::ClientReview);
+    $media = attachMedia($post);
+
+    $body = asClient($this->client)->get(route('portal.posts.show', $post))->assertOk()->getContent();
+
+    expect(str_contains($body, 'brief.jpg'))->toBeTrue('The attachment was not rendered.')
+        ->and(str_contains($body, 'portal/media/'.$media->getRouteKey()))->toBeTrue();
+
+    // Never a raw disk path.
+    expect(str_contains($body, $media->path))->toBeFalse('The private disk path was exposed.');
+});
+
+it('serves the file only through a signed url', function (): void {
+    Storage::fake('local');
+
+    $post = postFor($this->brand, PostStatus::ClientReview);
+    $media = attachMedia($post);
+
+    // Unsigned: refused, so ids cannot be walked.
+    asClient($this->client)
+        ->get(route('portal.media.show', $media))
+        ->assertForbidden();
+
+    // Signed: served.
+    asClient($this->client)
+        ->get(app(PortalMediaUrl::class)->for($media))
+        ->assertOk()
+        ->assertHeader('Content-Type', 'image/jpeg')
+        ->assertHeader('X-Content-Type-Options', 'nosniff');
+});
+
+it('refuses a signed url to someone with no portal session', function (): void {
+    // A signed URL is shareable until it expires, so the signature alone must
+    // never be enough to read a client's content.
+    Storage::fake('local');
+
+    $post = postFor($this->brand, PostStatus::ClientReview);
+    $media = attachMedia($post);
+    $url = app(PortalMediaUrl::class)->for($media);
+
+    $this->get($url)->assertRedirect(route('portal.login'));
+});
+
+it('refuses media attached only to a post the client cannot see', function (): void {
+    /*
+     | The decisive check. Brand assignment alone would be too loose: a client
+     | must not see everything in their brand's library, only what the agency
+     | actually put in a post and sent for review.
+     */
+    Storage::fake('local');
+
+    $draft = postFor($this->brand, PostStatus::Draft);
+    $media = attachMedia($draft);
+
+    asClient($this->client)
+        ->get(app(PortalMediaUrl::class)->for($media))
+        ->assertNotFound();
+});
+
+it('refuses media from another brand and another tenant', function (): void {
+    Storage::fake('local');
+
+    $otherPost = postFor($this->otherBrand, PostStatus::ClientReview);
+    $otherMedia = attachMedia($otherPost);
+
+    asClient($this->client)
+        ->get(app(PortalMediaUrl::class)->for($otherMedia))
+        ->assertNotFound();
+
+    $otherOwner = User::factory()->create();
+    $otherTenant = app(ProvisionTenantService::class)->execute($otherOwner, 'Rival Agency');
+    app(TenantContext::class)->set($otherTenant);
+    $foreignBrand = Customer::factory()->create(['tenant_id' => $otherTenant->getKey()]);
+    $foreignPost = postFor($foreignBrand, PostStatus::ClientReview);
+    $foreignMedia = attachMedia($foreignPost);
+    actingForTenant($this->tenant);
+
+    asClient($this->client)
+        ->get(app(PortalMediaUrl::class)->for($foreignMedia))
+        ->assertNotFound();
+});
+
+it('404s when the file is gone rather than erroring', function (): void {
+    // Retention can purge a file while a post still references the row.
+    Storage::fake('local');
+
+    $post = postFor($this->brand, PostStatus::ClientReview);
+    $media = attachMedia($post);
+
+    Storage::disk($media->disk)->delete($media->path);
+
+    asClient($this->client)
+        ->get(app(PortalMediaUrl::class)->for($media))
+        ->assertNotFound();
+});
+
+it('expires a media url', function (): void {
+    Storage::fake('local');
+
+    $post = postFor($this->brand, PostStatus::ClientReview);
+    $media = attachMedia($post);
+    $url = app(PortalMediaUrl::class)->for($media, 60);
+
+    asClient($this->client)->get($url)->assertOk();
+
+    $this->travel(2)->minutes();
+
+    asClient($this->client)->get($url)->assertForbidden();
+});
+
+it('keeps attachments in the order the agency arranged them', function (): void {
+    // A carousel shown in a different order than the client approved is a real
+    // complaint, and sort_order is the only record of the intent.
+    Storage::fake('local');
+
+    $post = postFor($this->brand, PostStatus::ClientReview);
+    $first = attachMedia($post);
+    $second = attachMedia($post);
+
+    DB::table('post_media')->where('media_id', $first->getKey())->update(['sort_order' => 5]);
+    DB::table('post_media')->where('media_id', $second->getKey())->update(['sort_order' => 1]);
+
+    expect($post->fresh()->media->pluck('id')->all())
+        ->toBe([$second->getKey(), $first->getKey()]);
 });
