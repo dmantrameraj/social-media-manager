@@ -11,12 +11,22 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
+use Illuminate\Support\Facades\Route;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function (): void {
+            /*
+             | The portal has its own route file, loaded with the `web`
+             | middleware (session and CSRF) but nothing else. Keeping it out of
+             | web.php is the point: the client surface shares no route group,
+             | no controller and no layout namespace with the agency one.
+             */
+            Route::middleware('web')->group(base_path('routes/portal.php'));
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([

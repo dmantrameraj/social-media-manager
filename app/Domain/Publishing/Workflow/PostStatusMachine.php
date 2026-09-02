@@ -86,6 +86,23 @@ final class PostStatusMachine
         'rejected' => 'posts.approve_internal',
     ];
 
+    /**
+     * The only destinations a client may move a post to.
+     *
+     * An allow-list rather than a deny-list: a status added to TRANSITIONS
+     * later must not silently become something a client can do.
+     *
+     * Draft is here because "request changes" returns the post to the agency,
+     * which is a client's legitimate third answer alongside approve and reject.
+     *
+     * @var list<PostStatus>
+     */
+    private const PORTAL_TRANSITIONS = [
+        PostStatus::ClientApproved,
+        PostStatus::Rejected,
+        PostStatus::Draft,
+    ];
+
     public function __construct(private readonly AuditLogger $audit) {}
 
     public function canTransition(Post $post, PostStatus $to): bool
@@ -116,6 +133,35 @@ final class PostStatusMachine
     {
         if (! $this->canTransition($post, $to)) {
             throw new IllegalTransition($post->status, $to);
+        }
+
+        /*
+         | Portal actors are checked FIRST, before the agency permission lookup.
+         |
+         | That ordering is the whole fix: REQUIRED_PERMISSIONS is a map of
+         | agency permissions and has no entry for client_approved, so the
+         | `$permission === null` early return below fired before any portal
+         | check could run. A view-only client could approve a post, and the
+         | check that was supposed to stop them sat a few lines too far down.
+         |
+         | Rights are per brand (customer_portal_user_customer.role), so this
+         | tests against THIS post's brand rather than a global permission.
+         */
+        if ($actor instanceof CustomerPortalUser) {
+            if (! $actor->canAccessCustomer($post->customer_id)) {
+                throw new UnauthorizedTransition('portal.posts.view');
+            }
+
+            if (! in_array($to, self::PORTAL_TRANSITIONS, true)) {
+                // Scheduling, cancelling and publishing are agency decisions.
+                throw new UnauthorizedTransition('portal.posts.'.$to->value);
+            }
+
+            if (! $actor->canApproveFor($post->customer_id)) {
+                throw new UnauthorizedTransition('portal.posts.approve');
+            }
+
+            return;
         }
 
         $permissions = self::REQUIRED_PERMISSIONS;
