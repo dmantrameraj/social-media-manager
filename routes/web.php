@@ -20,6 +20,7 @@ use App\Http\Controllers\Agency\NotificationController;
 use App\Http\Controllers\Agency\NotificationSettingsController;
 use App\Http\Controllers\Agency\PostController;
 use App\Http\Controllers\Agency\SessionController;
+use App\Http\Controllers\Agency\SettingsController;
 use App\Http\Controllers\Agency\SuspendedController;
 use App\Http\Controllers\Agency\TeamController;
 use App\Http\Controllers\InvitationController;
@@ -121,6 +122,14 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
         ->name('sessions.destroy-others');
     Route::delete('sessions/{session}', [SessionController::class, 'destroy'])
         ->name('sessions.destroy');
+
+    /*
+     | Workspace settings. settings.view and settings.update were in the
+     | permission catalogue from Step 5 and governed nothing until now, so an
+     | agency that signed up with the wrong timezone had no way to correct it.
+     */
+    Route::get('settings', [SettingsController::class, 'edit'])->name('settings.edit');
+    Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
 
     Route::get('team', [TeamController::class, 'index'])->name('team.index');
     Route::post('team/invite', [TeamController::class, 'invite'])->name('team.invite');

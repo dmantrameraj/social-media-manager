@@ -16,6 +16,10 @@
         ['route' => 'agency.media.index', 'label' => 'Media', 'permission' => 'media.view'],
         ['route' => 'agency.team.index', 'label' => 'Team', 'permission' => 'team.view'],
         ['route' => 'agency.billing', 'label' => 'Billing', 'permission' => 'billing.view'],
+        // Workspace-level and permission-gated, so it sits here rather than in
+        // the account block below, which holds the signed-in person's own
+        // preferences and gates on nothing but identity.
+        ['route' => 'agency.settings.edit', 'label' => 'Settings', 'permission' => 'settings.view'],
     ])->filter(fn (array $item): bool => $item['permission'] === null
         || auth()->user()?->can($item['permission']) === true);
 
