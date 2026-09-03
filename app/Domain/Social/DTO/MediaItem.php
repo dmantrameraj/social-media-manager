@@ -22,7 +22,23 @@ final readonly class MediaItem
         public ?int $height = null,
         public ?int $durationSeconds = null,
         public ?string $role = null,
+
+        /*
+         | Carried to the provider so the published post is described, not just
+         | the preview in this application.
+         |
+         | Adapters must clamp this to their own platform's ceiling -- the
+         | limits differ per network and are [VERIFY] against current provider
+         | documentation. The column allows 1000 so the database is never the
+         | thing that truncates.
+         */
+        public ?string $altText = null,
     ) {}
+
+    public function hasAltText(): bool
+    {
+        return trim((string) $this->altText) !== '';
+    }
 
     public function isImage(): bool
     {

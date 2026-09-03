@@ -7,6 +7,7 @@ namespace App\Domain\Identity\Models;
 use App\Domain\Customers\Enums\PortalRole;
 use App\Domain\Customers\Models\Customer;
 use App\Domain\Identity\Enums\UserStatus;
+use App\Domain\Notifications\PortalPasswordResetNotification;
 use App\Domain\Tenancy\Concerns\BelongsToTenant;
 use App\Policies\CustomerPortalUserPolicy;
 use Database\Factories\CustomerPortalUserFactory;
@@ -147,5 +148,18 @@ class CustomerPortalUser extends Authenticatable
     public function canAuthenticate(): bool
     {
         return $this->status->canAuthenticate();
+    }
+
+    /**
+     * Send the PORTAL reset link, not the agency one.
+     *
+     * Laravel's default builds route('password.reset'), which is the agency
+     * form -- backed by the `users` broker and the `web` guard. A client
+     * following it would be told their token is invalid, with no way to tell
+     * why. See PortalPasswordResetNotification.
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new PortalPasswordResetNotification($token));
     }
 }

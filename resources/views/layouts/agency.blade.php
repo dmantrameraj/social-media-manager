@@ -18,6 +18,13 @@
         ['route' => 'agency.billing', 'label' => 'Billing', 'permission' => 'billing.view'],
     ])->filter(fn (array $item): bool => $item['permission'] === null
         || auth()->user()?->can($item['permission']) === true);
+
+    /*
+     | Counted once per render, not per nav item. These are the viewer's own
+     | notifications, so no permission gates the link -- the relation scopes
+     | them to the signed-in identity, which is the only boundary there is.
+     */
+    $unreadNotifications = auth()->user()?->unreadNotifications()->count() ?? 0;
 @endphp
 
 <!DOCTYPE html>
@@ -67,6 +74,24 @@
         </nav>
 
         <div class="border-t border-slate-200 p-3">
+            {{-- Above the sign-out block so it is reachable from every page,
+                 with the count in the link text rather than colour alone. --}}
+            <a href="{{ route('agency.notifications.index') }}"
+               @if (request()->routeIs('agency.notifications.*')) aria-current="page" @endif
+               class="mb-2 flex items-center justify-between rounded-lg px-3 py-2 text-sm transition
+                      {{ request()->routeIs('agency.notifications.*')
+                          ? 'bg-slate-900 text-white font-medium'
+                          : 'text-slate-700 hover:bg-slate-100' }}">
+                <span>Notifications</span>
+                @if ($unreadNotifications > 0)
+                    <span class="rounded-full bg-slate-900 px-2 py-0.5 text-xs font-medium text-white
+                                 {{ request()->routeIs('agency.notifications.*') ? 'bg-white text-slate-900' : '' }}">
+                        {{ $unreadNotifications > 99 ? '99+' : $unreadNotifications }}
+                        <span class="sr-only">unread</span>
+                    </span>
+                @endif
+            </a>
+
             <p class="px-3 pb-2 text-xs text-slate-500 truncate">{{ auth()->user()?->name }}</p>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf

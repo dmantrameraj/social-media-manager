@@ -8,6 +8,7 @@ use App\Domain\Audit\AuditLogger;
 use App\Domain\Audit\Enums\ActorType;
 use App\Domain\Identity\Models\CustomerPortalUser;
 use App\Domain\Identity\Models\User;
+use App\Domain\Notifications\PostEventDispatcher;
 use App\Domain\Publishing\Enums\PostStatus;
 use App\Domain\Publishing\Exceptions\IllegalTransition;
 use App\Domain\Publishing\Exceptions\UnauthorizedTransition;
@@ -15,6 +16,7 @@ use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostApproval;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 /**
  * The only thing permitted to change a post's status.
@@ -103,7 +105,10 @@ final class PostStatusMachine
         PostStatus::Draft,
     ];
 
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly PostEventDispatcher $notifications,
+    ) {}
 
     public function canTransition(Post $post, PostStatus $to): bool
     {
@@ -194,7 +199,7 @@ final class PostStatusMachine
     ): Post {
         $this->assertCan($post, $to, $actor);
 
-        return DB::transaction(function () use ($post, $to, $actor, $comment, $stage): Post {
+        $post = DB::transaction(function () use ($post, $to, $actor, $comment, $stage): Post {
             $from = $post->status;
 
             $post->forceFill(['status' => $to->value]);
@@ -232,6 +237,31 @@ final class PostStatusMachine
 
             return $post;
         });
+
+        /*
+         | Notifications are dispatched AFTER the transaction returns, never
+         | inside it.
+         |
+         | A queued job enqueued inside an open transaction can be picked up by
+         | a worker before the commit lands, and then queries a post that does
+         | not exist yet. That race only appears under load and reads in
+         | production as a phantom "post not found".
+         |
+         | Delivery is also not allowed to fail the transition. A post that
+         | moved but whose email bounced is a missing email; a transition rolled
+         | back because a mail server was down is a lost decision.
+         */
+        $event = $this->notifications->eventFor($to, $actor);
+
+        if ($event !== null) {
+            try {
+                $this->notifications->dispatch($event, $post, $comment);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $post;
     }
 
     private function actionFor(PostStatus $to): string

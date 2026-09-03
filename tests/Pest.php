@@ -14,6 +14,7 @@ use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostTarget;
 use App\Domain\Social\Models\SocialAccount;
 use App\Domain\Social\Models\SocialConnection;
+use App\Domain\Tenancy\Enums\MembershipStatus;
 use App\Domain\Tenancy\Models\Tenant;
 use App\Domain\Tenancy\Services\ProvisionTenantService;
 use App\Support\TenantContext;
@@ -21,6 +22,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 pest()->extend(TestCase::class)
@@ -62,6 +64,36 @@ function withoutTenantContext(): void
 function seedPermissions(): void
 {
     app(SyncPermissionCatalogueService::class)->execute();
+}
+
+/**
+ * Create a member of $tenant holding $role.
+ *
+ * Lives here rather than in a test file because two suites needed it and PHP
+ * function declarations in Pest files are global: the second declaration is a
+ * fatal that kills the entire run before a single test executes, and it is
+ * invisible when either file is run on its own.
+ */
+function memberWithRole(Tenant $tenant, string $role): User
+{
+    $user = User::factory()->create();
+
+    $user->tenants()->attach($tenant->getKey(), [
+        'status' => MembershipStatus::Active->value,
+        'joined_at' => now(),
+    ]);
+
+    $registrar = app(PermissionRegistrar::class);
+    $previous = $registrar->getPermissionsTeamId();
+    $registrar->setPermissionsTeamId($tenant->getKey());
+
+    try {
+        $user->assignRole($role);
+    } finally {
+        $registrar->setPermissionsTeamId($previous);
+    }
+
+    return $user->fresh();
 }
 
 /**

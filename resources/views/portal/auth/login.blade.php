@@ -15,6 +15,8 @@
     <button type="submit">Sign in</button>
 </form>
 
+<a href="{{ route('portal.password.request') }}">Forgot your password?</a>
+
 {{--
  | Deliberately no "create an account" link. Client logins are issued by the
  | agency through an invitation; there is no self-service path onto this

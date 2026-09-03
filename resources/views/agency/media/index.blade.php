@@ -28,7 +28,7 @@
 
             @if ($canUpload)
                 <form method="POST" action="{{ route('agency.media.store') }}"
-                      enctype="multipart/form-data" class="flex items-end gap-2">
+                      enctype="multipart/form-data" class="flex flex-wrap items-end gap-2">
                     @csrf
                     <input type="hidden" name="brand" value="{{ $selected }}">
                     <div>
@@ -37,6 +37,24 @@
                                class="mt-1 block text-sm file:mr-3 file:rounded-lg file:border-0
                                       file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:text-white">
                     </div>
+
+                    {{--
+                     | Asked for here, at upload, while whoever chose the file is
+                     | still looking at it. Deferring to a later "add your alt
+                     | text" screen reliably produces "photo" and "image1".
+                     |
+                     | Not required: a forced field produces a character typed to
+                     | get past it, which is worse than absent, because a screen
+                     | reader announces it as though it were a description.
+                    --}}
+                    <div>
+                        <label for="alt_text" class="block text-sm font-medium">Describe it</label>
+                        <input id="alt_text" name="alt_text" type="text" maxlength="1000"
+                               value="{{ old('alt_text') }}"
+                               placeholder="What is in this image?"
+                               class="mt-1 w-56 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    </div>
+
                     <button type="submit"
                             class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
                         Add file
@@ -54,10 +72,19 @@
             <ul class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
                 @foreach ($media as $item)
                     <li class="overflow-hidden rounded-xl border border-slate-200 bg-white">
-                        <div class="grid aspect-square place-items-center bg-slate-100 text-xs text-slate-500">
-                            {{-- Files are on a private disk and served only through signed,
-                                 policy-checked URLs, so no direct src is rendered here. --}}
-                            {{ strtoupper($item->extension) }}
+                        @php $preview = $previews[$item->getKey()] ?? null; @endphp
+
+                        <div class="grid aspect-square place-items-center overflow-hidden bg-slate-100 text-xs text-slate-500">
+                            @if ($preview !== null)
+                                {{-- A signed, short-lived, policy-checked route. Never a
+                                     disk path: the files sit on a private disk. --}}
+                                <img src="{{ $preview }}" alt="{{ $item->describedAs() }}"
+                                     loading="lazy" class="h-full w-full object-cover">
+                            @else
+                                {{-- Video and PDF show their type rather than a thumbnail:
+                                     drawing one would stream the whole file to fill a tile. --}}
+                                {{ strtoupper($item->extension) }}
+                            @endif
                         </div>
                         <div class="p-2">
                             <p class="truncate text-xs font-medium" title="{{ $item->original_name }}">
@@ -66,6 +93,33 @@
                             <p class="text-xs text-slate-500">
                                 {{ number_format($item->size_bytes / 1024, 0) }} KB
                             </p>
+
+                            @if ($canUpload)
+                                {{--
+                                 | Editable in place, because every file that
+                                 | predates this feature has no description and
+                                 | somebody has to be able to add one without
+                                 | re-uploading the image.
+                                --}}
+                                <form method="POST" action="{{ route('agency.media.update', $item) }}"
+                                      class="mt-2">
+                                    @csrf
+                                    @method('PUT')
+                                    <label class="sr-only" for="alt-{{ $item->getKey() }}">
+                                        Description for {{ $item->original_name }}
+                                    </label>
+                                    <input id="alt-{{ $item->getKey() }}" name="alt_text" type="text"
+                                           maxlength="1000" value="{{ $item->alt_text }}"
+                                           placeholder="{{ $item->needsAltText() ? 'Needs a description' : 'Description' }}"
+                                           class="w-full rounded border px-2 py-1 text-xs
+                                                  {{ $item->needsAltText()
+                                                      ? 'border-amber-400 bg-amber-50 placeholder-amber-700'
+                                                      : 'border-slate-300' }}">
+                                    <button type="submit" class="mt-1 text-xs underline">Save</button>
+                                </form>
+                            @elseif (filled($item->alt_text))
+                                <p class="mt-1 text-xs text-slate-600">{{ $item->alt_text }}</p>
+                            @endif
                         </div>
                     </li>
                 @endforeach

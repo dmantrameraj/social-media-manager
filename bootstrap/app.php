@@ -88,6 +88,22 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleImpersonation::class,
         ]);
 
+        /*
+         | Send an unauthenticated visitor to the login screen for the surface
+         | they were actually trying to reach.
+         |
+         | Laravel's default points everything at route('login'), which is the
+         | AGENCY sign-in. A client whose session expired while reviewing content
+         | landed there, typed their portal credentials into a form backed by a
+         | different guard and a different table, and was told the credentials do
+         | not match -- a dead end for the audience least equipped to work out
+         | why. Found by a test asserting the redirect target rather than merely
+         | that a redirect happened.
+         */
+        $middleware->redirectGuestsTo(fn (Request $request): string => $request->is('portal', 'portal/*')
+            ? route('portal.login')
+            : route('login'));
+
         $middleware->group('admin', [
             'auth:web',
             'super-admin',

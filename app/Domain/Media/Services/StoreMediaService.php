@@ -31,6 +31,7 @@ final class StoreMediaService
         User $actor,
         UploadedFile $file,
         ?int $folderId = null,
+        ?string $altText = null,
     ): Media {
         $this->assertAcceptable($file);
 
@@ -45,7 +46,7 @@ final class StoreMediaService
         $filename = Str::ulid()->toString().'.'.$extension;
 
         return DB::transaction(function () use (
-            $customer, $actor, $file, $folderId, $size, $disk, $directory, $filename, $extension
+            $customer, $actor, $file, $folderId, $size, $disk, $directory, $filename, $extension, $altText
         ): Media {
             $path = Storage::disk($disk)->putFileAs($directory, $file, $filename);
 
@@ -66,6 +67,16 @@ final class StoreMediaService
             $media->size_bytes = $size;
             $media->checksum = hash_file('sha256', $file->getRealPath()) ?: null;
             $media->uploaded_by_user_id = $actor->getKey();
+
+            /*
+             | Captured at upload, when the person who chose the file is still
+             | looking at it. Asking later, in a bulk "fix your alt text" screen,
+             | reliably produces "photo" and "image1".
+             |
+             | Trimmed to null rather than stored blank, so needsAltText() does
+             | not have to treat whitespace as a description.
+             */
+            $media->alt_text = $this->normaliseAltText($altText);
 
             // Images still need variants generated on the media queue; other
             // types are immediately usable.
@@ -157,6 +168,20 @@ final class StoreMediaService
     /**
      * A folder id from a request is only honoured if it belongs to this brand.
      */
+    /**
+     * Blank, whitespace and over-long input all normalise to something safe.
+     *
+     * Null rather than '' because "has no description" and "has an empty
+     * description" must not be different states -- a screen reader announces
+     * an empty alt as though the image were decorative.
+     */
+    private function normaliseAltText(?string $altText): ?string
+    {
+        $trimmed = trim((string) $altText);
+
+        return $trimmed === '' ? null : Str::limit($trimmed, 1000, '');
+    }
+
     private function resolveFolderId(Customer $customer, ?int $folderId): ?int
     {
         if ($folderId === null) {

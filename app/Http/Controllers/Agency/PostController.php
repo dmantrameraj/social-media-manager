@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Agency;
 
 use App\Domain\Customers\Models\Customer;
+use App\Domain\Media\Models\Media;
+use App\Domain\Media\Services\SignedMediaUrl;
 use App\Domain\Publishing\Enums\PostStatus;
 use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostTarget;
@@ -64,6 +66,21 @@ final class PostController
                 ->whereIn('customer_id', $brands->pluck('id'))
                 ->orderBy('name')
                 ->get(),
+
+            /*
+             | Only usable files are offered. A still-processing or failed
+             | upload presented as a choice would be attached and then fail at
+             | publish time, which is the worst possible moment to find out.
+             |
+             | Grouped by brand in the view, so switching brand does not offer
+             | another client's library.
+             */
+            'media' => Media::query()
+                ->ready()
+                ->whereIn('customer_id', $brands->pluck('id'))
+                ->orderByDesc('id')
+                ->limit(200)
+                ->get(),
         ]);
     }
 
@@ -76,15 +93,26 @@ final class PostController
         $request->user()->can('view', $brand) || abort(403);
 
         $accounts = $this->resolveAccounts($request->input('accounts', []), $brand);
+        $media = $this->resolveMedia($request->input('media', []), $brand);
 
-        $post = DB::transaction(function () use ($request, $brand, $accounts): Post {
+        $post = DB::transaction(function () use ($request, $brand, $accounts, $media): Post {
             $post = new Post;
             $post->tenant_id = $brand->tenant_id;
             $post->customer_id = $brand->getKey();
             $post->created_by_user_id = $request->user()->getKey();
             $post->title = $request->input('title');
             $post->body = (string) $request->input('body');
-            $post->content_type = 'text';
+            /*
+             | Derived from what is attached, not assumed. Providers branch on
+             | this -- a video post and an image post are different API calls on
+             | every network -- so hardcoding 'text' would mislabel every post
+             | that carries media.
+             */
+            $post->content_type = match (true) {
+                $media->contains(fn ($item): bool => $item->isVideo()) => 'video',
+                $media->isNotEmpty() => 'image',
+                default => 'text',
+            };
             $post->status = PostStatus::Draft;
             $post->source = 'manual';
             $post->approval_required = $brand->requiresClientApproval();
@@ -116,6 +144,22 @@ final class PostController
                 $target->save();
             }
 
+            /*
+             | Order is the submitted order, not the library's. A carousel is a
+             | sequence the author arranged deliberately, and sort_order is the
+             | only record of that intent -- the portal and every provider read
+             | it back.
+             */
+            foreach ($media->values() as $index => $item) {
+                DB::table('post_media')->insert([
+                    'tenant_id' => $post->tenant_id,
+                    'post_id' => $post->getKey(),
+                    'media_id' => $item->getKey(),
+                    'sort_order' => $index,
+                    'role' => 'primary',
+                ]);
+            }
+
             return $post;
         });
 
@@ -124,14 +168,20 @@ final class PostController
             ->with('status', 'Draft saved.');
     }
 
-    public function show(Request $request, Post $post): View
+    public function show(Request $request, Post $post, SignedMediaUrl $urls): View
     {
         $request->user()->can('posts.view') || abort(403);
         $this->assertReachable($request, $post);
 
         return view('agency.posts.show', [
             'title' => $post->title ?: 'Post',
-            'post' => $post->load('targets.socialAccount', 'approvals'),
+            'post' => $post->load('targets.socialAccount', 'approvals', 'media'),
+
+            // Signed URLs for the images, so staff can see what the client will
+            // see rather than trusting a filename.
+            'previews' => $post->media
+                ->filter(fn (Media $item): bool => $item->isImage() && $item->isUsable())
+                ->mapWithKeys(fn (Media $item) => [$item->getKey() => $urls->forAgency($item)]),
             // The composer never sets status directly; it asks the machine
             // what is legal from here.
             'allowedTransitions' => $this->machine->allowedFrom($post->status),
@@ -210,6 +260,38 @@ final class PostController
             ->where('customer_id', $brand->getKey())
             ->whereIn('id', array_map('intval', $ids))
             ->get();
+    }
+
+    /**
+     * Media the author may actually attach.
+     *
+     * Filtered to the CHOSEN BRAND and to usable files, then re-ordered to the
+     * submitted sequence. Ids arrive from a form, so brand ownership is checked
+     * here rather than trusted -- and `isUsable()` keeps a still-processing or
+     * failed upload out of a post that is about to be scheduled.
+     *
+     * @param  array<int, mixed>  $ids
+     * @return Collection<int, Media>
+     */
+    private function resolveMedia(array $ids, Customer $brand)
+    {
+        if ($ids === []) {
+            return collect();
+        }
+
+        $ordered = array_values(array_unique(array_map('intval', $ids)));
+
+        $media = Media::query()
+            ->where('customer_id', $brand->getKey())
+            ->whereIn('id', $ordered)
+            ->get()
+            ->filter(fn (Media $item): bool => $item->isUsable());
+
+        // sortBy over the submitted order: whereIn returns rows in whatever
+        // order the database likes, which is not the order the author chose.
+        return $media->sortBy(
+            fn (Media $item): int => (int) array_search($item->getKey(), $ordered, true),
+        )->values();
     }
 
     private function assertReachable(Request $request, Post $post): void

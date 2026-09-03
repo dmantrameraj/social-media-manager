@@ -27,6 +27,19 @@ final class StorePostRequest extends FormRequest
             // account.
             'accounts' => ['array'],
             'accounts.*' => ['integer'],
+
+            /*
+             | Same rule as accounts: ownership of each id is verified in the
+             | controller against the CHOSEN BRAND. `exists:media,id` would
+             | happily accept another brand's -- or another tenant's -- file,
+             | because it only asks whether the row exists.
+             |
+             | Capped at 10 because every platform caps a carousel below that
+             | and an unbounded array is a cheap way to make one request do a
+             | lot of work.
+             */
+            'media' => ['array', 'max:10'],
+            'media.*' => ['integer'],
             // Minimum lead time keeps a new post out of the sweeper's current
             // pass, which is already scanning for work due now.
             'scheduled_at' => ['nullable', 'date', 'after:'.now()->addSeconds(

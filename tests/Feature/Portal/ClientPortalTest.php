@@ -9,7 +9,7 @@ use App\Domain\Customers\Services\PortalPostQuery;
 use App\Domain\Identity\Models\CustomerPortalUser;
 use App\Domain\Identity\Models\User;
 use App\Domain\Media\Models\Media;
-use App\Domain\Media\Services\PortalMediaUrl;
+use App\Domain\Media\Services\SignedMediaUrl;
 use App\Domain\Publishing\Enums\PostStatus;
 use App\Domain\Publishing\Exceptions\UnauthorizedTransition;
 use App\Domain\Publishing\Models\Post;
@@ -147,8 +147,21 @@ it('keeps a portal user out of every agency and admin route', function (): void 
 });
 
 it('cannot reach the portal at all without signing in', function (): void {
-    $this->get(route('portal.dashboard'))->assertRedirect();
-    $this->get(route('portal.posts.index'))->assertRedirect();
+    /*
+     | Asserts the DESTINATION, not merely that a redirect happened.
+     |
+     | The weaker version passed while every portal route sent guests to the
+     | AGENCY login -- where a client's credentials are backed by a different
+     | guard and a different table, so they would be told the credentials do not
+     | match. A dead end for the audience least equipped to work out why.
+     */
+    $this->get(route('portal.dashboard'))->assertRedirect(route('portal.login'));
+    $this->get(route('portal.posts.index'))->assertRedirect(route('portal.login'));
+});
+
+it('still sends an agency visitor to the agency login', function (): void {
+    // The portal redirect must not have swallowed everyone else's.
+    $this->get(route('agency.dashboard'))->assertRedirect(route('login'));
 });
 
 // -------------------------------------------------------------- visibility
@@ -437,7 +450,7 @@ it('serves the file only through a signed url', function (): void {
 
     // Signed: served.
     asClient($this->client)
-        ->get(app(PortalMediaUrl::class)->for($media))
+        ->get(app(SignedMediaUrl::class)->for($media))
         ->assertOk()
         ->assertHeader('Content-Type', 'image/jpeg')
         ->assertHeader('X-Content-Type-Options', 'nosniff');
@@ -450,7 +463,7 @@ it('refuses a signed url to someone with no portal session', function (): void {
 
     $post = postFor($this->brand, PostStatus::ClientReview);
     $media = attachMedia($post);
-    $url = app(PortalMediaUrl::class)->for($media);
+    $url = app(SignedMediaUrl::class)->for($media);
 
     $this->get($url)->assertRedirect(route('portal.login'));
 });
@@ -467,7 +480,7 @@ it('refuses media attached only to a post the client cannot see', function (): v
     $media = attachMedia($draft);
 
     asClient($this->client)
-        ->get(app(PortalMediaUrl::class)->for($media))
+        ->get(app(SignedMediaUrl::class)->for($media))
         ->assertNotFound();
 });
 
@@ -478,7 +491,7 @@ it('refuses media from another brand and another tenant', function (): void {
     $otherMedia = attachMedia($otherPost);
 
     asClient($this->client)
-        ->get(app(PortalMediaUrl::class)->for($otherMedia))
+        ->get(app(SignedMediaUrl::class)->for($otherMedia))
         ->assertNotFound();
 
     $otherOwner = User::factory()->create();
@@ -490,7 +503,7 @@ it('refuses media from another brand and another tenant', function (): void {
     actingForTenant($this->tenant);
 
     asClient($this->client)
-        ->get(app(PortalMediaUrl::class)->for($foreignMedia))
+        ->get(app(SignedMediaUrl::class)->for($foreignMedia))
         ->assertNotFound();
 });
 
@@ -504,7 +517,7 @@ it('404s when the file is gone rather than erroring', function (): void {
     Storage::disk($media->disk)->delete($media->path);
 
     asClient($this->client)
-        ->get(app(PortalMediaUrl::class)->for($media))
+        ->get(app(SignedMediaUrl::class)->for($media))
         ->assertNotFound();
 });
 
@@ -513,7 +526,7 @@ it('expires a media url', function (): void {
 
     $post = postFor($this->brand, PostStatus::ClientReview);
     $media = attachMedia($post);
-    $url = app(PortalMediaUrl::class)->for($media, 60);
+    $url = app(SignedMediaUrl::class)->for($media, 60);
 
     asClient($this->client)->get($url)->assertOk();
 

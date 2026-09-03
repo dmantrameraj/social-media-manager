@@ -7,38 +7,13 @@ use App\Domain\Customers\Models\Customer;
 use App\Domain\Identity\Models\User;
 use App\Domain\Media\Models\Media;
 use App\Domain\Media\Models\MediaFolder;
-use App\Domain\Tenancy\Enums\MembershipStatus;
 use App\Domain\Tenancy\Models\Tenant;
 use App\Domain\Tenancy\Services\ProvisionTenantService;
-use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function (): void {
     seedPermissions();
     $this->provision = app(ProvisionTenantService::class);
 });
-
-/** Create a member of $tenant holding $role. */
-function memberWithRole(Tenant $tenant, string $role): User
-{
-    $user = User::factory()->create();
-
-    $user->tenants()->attach($tenant->getKey(), [
-        'status' => MembershipStatus::Active->value,
-        'joined_at' => now(),
-    ]);
-
-    $registrar = app(PermissionRegistrar::class);
-    $previous = $registrar->getPermissionsTeamId();
-    $registrar->setPermissionsTeamId($tenant->getKey());
-
-    try {
-        $user->assignRole($role);
-    } finally {
-        $registrar->setPermissionsTeamId($previous);
-    }
-
-    return $user->fresh();
-}
 
 // ------------------------------------------------------- tenant boundary (leg 1)
 

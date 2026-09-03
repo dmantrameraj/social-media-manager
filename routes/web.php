@@ -11,9 +11,13 @@ use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\PlanController as AdminPlanController;
 use App\Http\Controllers\Admin\TenantController as AdminTenantController;
 use App\Http\Controllers\Agency\BillingController;
+use App\Http\Controllers\Agency\BrandBrainController;
 use App\Http\Controllers\Agency\BrandController;
 use App\Http\Controllers\Agency\DashboardController;
 use App\Http\Controllers\Agency\MediaController;
+use App\Http\Controllers\Agency\MediaFileController;
+use App\Http\Controllers\Agency\NotificationController;
+use App\Http\Controllers\Agency\NotificationSettingsController;
 use App\Http\Controllers\Agency\PostController;
 use App\Http\Controllers\Agency\SuspendedController;
 use App\Http\Controllers\Agency\TeamController;
@@ -58,6 +62,14 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
     Route::post('brands', [BrandController::class, 'store'])->name('brands.store');
     Route::get('brands/{brand}', [BrandController::class, 'show'])->name('brands.show');
     Route::put('brands/{brand}', [BrandController::class, 'update'])->name('brands.update');
+    /*
+     | The brand profile every AI feature is grounded in. Gated on
+     | ai.manage_brand_brain rather than customers.update: editing this changes
+     | what the AI says on a client's behalf across every future post.
+     */
+    Route::get('brands/{brand}/brain', [BrandBrainController::class, 'edit'])->name('brands.brain');
+    Route::put('brands/{brand}/brain', [BrandBrainController::class, 'update'])->name('brands.brain.update');
+
     Route::post('brands/{brand}/archive', [BrandController::class, 'archive'])->name('brands.archive');
     Route::post('brands/{brand}/unarchive', [BrandController::class, 'unarchive'])->name('brands.unarchive');
 
@@ -69,8 +81,35 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
 
     Route::get('calendar', [PostController::class, 'calendar'])->name('calendar');
 
+    /*
+     | A user's own notifications. No permission gate: the relation scopes them
+     | to the signed-in identity, which is the only boundary that applies.
+     */
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('notifications/{id}/read', [NotificationController::class, 'read'])->name('notifications.read');
+
+    Route::get('notifications/settings', [NotificationSettingsController::class, 'edit'])
+        ->name('notifications.settings');
+    Route::put('notifications/settings', [NotificationSettingsController::class, 'update'])
+        ->name('notifications.settings.update');
+
     Route::get('media', [MediaController::class, 'index'])->name('media.index');
     Route::post('media', [MediaController::class, 'store'])->name('media.store');
+    Route::put('media/{media}', [MediaController::class, 'update'])->name('media.update');
+
+    /*
+     | Streams one file after MediaPolicy@download. `signed` on top of the
+     | agency group's auth: the signature stops ids being walked, and the
+     | session stops a signed URL being useful to anyone it is forwarded to.
+     |
+     | A separate route from the portal's because the two surfaces authorise
+     | completely differently. One route branching on the guard is how the
+     | looser branch eventually answers for the stricter one.
+     */
+    Route::get('media/{media}/file', MediaFileController::class)
+        ->middleware('signed')
+        ->name('media.file');
 
     Route::get('team', [TeamController::class, 'index'])->name('team.index');
     Route::post('team/invite', [TeamController::class, 'invite'])->name('team.invite');

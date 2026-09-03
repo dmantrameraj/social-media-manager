@@ -340,7 +340,25 @@ it('authorises inside every agency controller action', function (): void {
         'agency.dashboard',
     ];
 
+    /*
+     | Routes whose subject is the SIGNED-IN USER'S OWN record. There is no
+     | permission that could usefully protect these -- a permission letting one
+     | team member read another's notifications would be a stranger feature
+     | than the one it guards -- so identity is the authorisation.
+     |
+     | Listed rather than waved through: the loop below still checks them, with
+     | a different rule.
+     */
+    $selfScoped = [
+        'agency.notifications.index',
+        'agency.notifications.read',
+        'agency.notifications.read-all',
+        'agency.notifications.settings',
+        'agency.notifications.settings.update',
+    ];
+
     $missing = [];
+    $unscoped = [];
 
     foreach (app('router')->getRoutes() as $route) {
         $name = (string) $route->getName();
@@ -360,6 +378,27 @@ it('authorises inside every agency controller action', function (): void {
             $reflection->getEndLine() - $reflection->getStartLine() + 1,
         ));
 
+        if (in_array($name, $selfScoped, true)) {
+            /*
+             | The self-scoped rule: every read must hang off the authenticated
+             | user, and the body must never reach a model statically. It is
+             | Model::find($id) that lets a request name a row belonging to
+             | somebody else; $request->user()->notifications() cannot.
+             */
+            $viaUser = str_contains($body, 'user()->')
+                || str_contains($body, '$user->');
+
+            $reachesModelDirectly = str_contains($body, '::query(')
+                || str_contains($body, '::find(')
+                || str_contains($body, '::where(');
+
+            if (! $viaUser || $reachesModelDirectly) {
+                $unscoped[] = $name;
+            }
+
+            continue;
+        }
+
         $authorises = str_contains($body, '->can(')
             || str_contains($body, 'authorize(')
             || str_contains($body, 'assertReachable');
@@ -368,6 +407,11 @@ it('authorises inside every agency controller action', function (): void {
             $missing[] = $name;
         }
     }
+
+    expect($unscoped)->toBeEmpty(
+        'These routes are listed as self-scoped but do not scope through the '
+        .'authenticated user: '.implode(', ', $unscoped)
+    );
 
     expect($missing)->toBeEmpty(
         'These agency routes perform no authorisation check: '.implode(', ', $missing)

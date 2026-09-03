@@ -74,6 +74,23 @@
                 </dl>
             </div>
 
+            @can('ai.manage_brand_brain')
+                {{-- The profile every AI feature reads. Reachable from the brand
+                     rather than buried in settings, because it is a fact about
+                     this client, not a preference of the agency's. --}}
+                <div class="rounded-xl border border-slate-200 bg-white p-5">
+                    <h2 class="text-sm font-semibold">Brand brain</h2>
+                    <p class="mt-1 text-sm text-slate-600">
+                        What the AI knows about this client. The more it holds, the
+                        less generic the writing.
+                    </p>
+                    <a href="{{ route('agency.brands.brain', $brand) }}"
+                       class="mt-3 inline-block rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50">
+                        Edit brand brain
+                    </a>
+                </div>
+            @endcan
+
             @canany(['archive', 'unarchive'], $brand)
                 <div class="rounded-xl border border-slate-200 bg-white p-5">
                     <h2 class="text-sm font-semibold">Lifecycle</h2>

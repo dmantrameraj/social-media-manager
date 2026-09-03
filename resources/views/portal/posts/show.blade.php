@@ -51,14 +51,11 @@
 
                     <figure>
                         @if ($item->isImage())
-                            {{-- No alt text is captured at upload yet, so the
-                                 filename is the only description available. That
-                                 is a real gap: the platforms this content is
-                                 published to support alt text, and a client using
-                                 a screen reader currently cannot review an image
-                                 at all. Recorded in the docs. --}}
+                            {{-- describedAs() falls back to the filename only so
+                                 the element is never silent. The agency is
+                                 prompted for a real description at upload. --}}
                             <img src="{{ $src }}"
-                                 alt="Attachment: {{ $item->original_name }}"
+                                 alt="{{ $item->describedAs() }}"
                                  @if ($item->width && $item->height)
                                      width="{{ $item->width }}" height="{{ $item->height }}"
                                  @endif
@@ -69,6 +66,7 @@
                             {{-- No autoplay and no loop: a client reviewing content
                                  decides when it starts. --}}
                             <video src="{{ $src }}" controls preload="metadata"
+                                   title="{{ $item->describedAs() }}"
                                    class="w-full rounded-lg border border-slate-200 bg-black">
                                 Your browser cannot play this video.
                             </video>
@@ -93,6 +91,12 @@
                         @endif
 
                         <figcaption class="mt-1 text-xs text-slate-500">
+                            @if (filled($item->alt_text))
+                                {{-- Shown, not just applied: the description goes out
+                                     with the published post, so it is part of what
+                                     the client is approving. --}}
+                                <span class="block text-slate-600">{{ $item->alt_text }}</span>
+                            @endif
                             {{ $item->original_name }}
                             @if ($item->width && $item->height)
                                 · {{ $item->width }}&times;{{ $item->height }}

@@ -6,7 +6,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Domain\Audit\Enums\ActorType;
 use App\Domain\Customers\Services\PortalPostQuery;
-use App\Domain\Media\Services\PortalMediaUrl;
+use App\Domain\Media\Services\SignedMediaUrl;
 use App\Domain\Publishing\Enums\PostStatus;
 use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostComment;
@@ -65,7 +65,7 @@ final class PostController extends Controller
         ]);
     }
 
-    public function show(Request $request, Post $post, PortalMediaUrl $mediaUrl): View
+    public function show(Request $request, Post $post, SignedMediaUrl $mediaUrl): View
     {
         $user = $request->user('customer');
 

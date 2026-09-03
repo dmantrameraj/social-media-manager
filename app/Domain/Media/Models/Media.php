@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Storage;
  *
  * @property int $tenant_id
  * @property MediaStatus $status
+ * @property string|null $alt_text
  */
 #[UseFactory(MediaFactory::class)]
 #[UsePolicy(MediaPolicy::class)]
@@ -44,6 +45,9 @@ class Media extends Model
         'customer_id',
         'folder_id',
         'original_name',
+        // Descriptive metadata a human writes, unlike everything in $guarded
+        // below, which describes the stored bytes.
+        'alt_text',
     ];
 
     /**
@@ -134,6 +138,33 @@ class Media extends Model
     public function isImage(): bool
     {
         return str_starts_with($this->mime_type, 'image/');
+    }
+
+    /**
+     * Does this file need alt text that it does not have?
+     *
+     * Only images and video are asked for it. A PDF's accessibility is a
+     * property of the document itself, and prompting for a description of one
+     * trains people to type something meaningless to clear the warning.
+     */
+    public function needsAltText(): bool
+    {
+        return ($this->isImage() || $this->isVideo())
+            && trim((string) $this->alt_text) === '';
+    }
+
+    /**
+     * What a screen reader should announce.
+     *
+     * Falls back to the filename only so the element is not silent; a filename
+     * is not a description, which is why needsAltText() exists to surface the
+     * gap rather than letting this quietly paper over it.
+     */
+    public function describedAs(): string
+    {
+        $alt = trim((string) $this->alt_text);
+
+        return $alt !== '' ? $alt : 'Attachment: '.$this->original_name;
     }
 
     public function isVideo(): bool

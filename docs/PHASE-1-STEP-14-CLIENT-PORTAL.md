@@ -155,7 +155,80 @@ by sniffing at upload — never a client-supplied header — because an "image" 
 browser decides is HTML would execute in the application's own origin. Caching is
 `private`, since this is one client's content behind a short-lived URL.
 
-## 8. Not done
+## 8. Alt text
+
+Two audiences were being failed at once: a client reviewing content with a screen
+reader had no description of an image, only a filename, and the published post
+carried none either — so every platform this content goes out to received an
+image with no description.
+
+`media.alt_text` is captured **at upload**, in the same form as the file, while
+whoever chose it is still looking at it. Deferring to a later "add your alt text"
+screen reliably produces "photo" and "image1". It is editable in place in the
+media library, because every file predating this feature has none and somebody
+has to be able to add one without re-uploading.
+
+**It is not required, deliberately.** A mandatory field produces a character
+typed to get past it, and that is *worse* than nothing: a screen reader announces
+it as though it were a real description, whereas an absent one it can at least
+report as an undescribed image. Files that need one are flagged in the library
+instead.
+
+Three details that are easy to get wrong:
+
+- **Blank normalises to null, never `''`.** An empty `alt` tells a screen reader
+  the image is decorative and to skip it entirely, which is a different — and
+  wrong — claim from "this has no description".
+- **`describedAs()` falls back to the filename** so an element is never silent,
+  but `needsAltText()` still reports the gap. A filename is not a description and
+  must not quietly count as one.
+- **PDFs are not asked for one.** A document's accessibility is a property of the
+  document; prompting trains people to type something meaningless to clear the
+  warning.
+
+`MediaItem` now carries `altText` through to the provider payload, so the
+description reaches the published post rather than stopping at this application's
+preview. Adapters must clamp to their own platform's ceiling — the limits differ
+per network and are `[VERIFY]` against current provider documentation. The column
+allows 1000 so the database is never what truncates.
+
+## 9. Composer media attachment
+
+The previous two sections built a portal that renders attachments and an
+accessibility field to describe them — while nothing in the UI could put a file
+on a post in the first place. The composer created every post as `content_type =
+'text'` and never touched `post_media`, so both features were unreachable in
+practice.
+
+The composer now offers the brand's library and attaches the selection:
+
+- **Only `ready` files are offered.** A still-processing upload presented as a
+  choice would be attached and then fail at publish time, which is the worst
+  possible moment to discover it.
+- **The submitted order is preserved** into `post_media.sort_order`. `whereIn`
+  returns rows in whatever order the database likes, so the author's sequence has
+  to be re-imposed — and it is what the portal and every provider read back.
+- **`content_type` is derived** from what is attached (`text` / `image` /
+  `video`) rather than hardcoded. Providers branch on it: a video post and an
+  image post are different API calls on every network.
+- **Ownership is checked against the chosen brand**, not with `exists:media,id`,
+  which only asks whether the row exists and would accept another brand's — or
+  another tenant's — file.
+- **Files with no description are flagged twice**: at the moment of attaching,
+  and again on the post itself, both while it can still be fixed before
+  publishing.
+
+The agency post page **lists** attachments rather than previewing them, because
+the agency surface has no signed-URL media route yet; rendering a `src` there
+would mean either a public path or a broken image. The names and descriptions are
+what matter for review, and the client sees the real images in the portal. An
+agency-side equivalent of `portal.media.show` is the obvious follow-up.
+
+**Reordering is not built.** Checkboxes do not capture selection order, so the
+sequence is the order files appear in the library. Drag-to-reorder belongs with
+the calendar drag-and-drop work.
+
+## 10. Not done
 
 - **Password reset for portal users.** The `customers` broker and the
   `customer_password_reset_tokens` table are configured; there is no screen. A
@@ -163,11 +236,6 @@ browser decides is HTML would execute in the application's own origin. Caching i
 - **Notifications.** Nothing emails a client that something is waiting, or the
   agency that a decision was made. Both sides currently have to look.
 - **Reports.** `portal.reports.view` exists as a permission; analytics is Phase 5.
-- **No alt text.** Nothing captures alt text at upload, so image previews fall
-  back to the filename. A client who uses a screen reader currently cannot review
-  an image at all — and the platforms this content publishes to support alt text,
-  so it is missing from the published post too. This is the next thing worth
-  fixing here.
 - **Video and PDF previews are untested against real files.** The tests use a
   faked disk with placeholder bytes, which proves the authorisation and headers
   but not that a large MP4 streams acceptably through PHP.

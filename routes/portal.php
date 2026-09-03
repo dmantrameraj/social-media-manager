@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\Portal\DashboardController;
 use App\Http\Controllers\Portal\MediaController;
+use App\Http\Controllers\Portal\PasswordResetController;
 use App\Http\Controllers\Portal\PostController;
 use App\Http\Controllers\Portal\SessionController;
 use Illuminate\Support\Facades\Route;
@@ -35,6 +36,25 @@ Route::prefix('portal')->name('portal.')->group(function (): void {
         Route::post('login', [SessionController::class, 'store'])
             ->middleware('throttle:10,1')
             ->name('login.store');
+    });
+
+    /*
+     | Password reset, on the `customers` broker. Behind guest:customer for the
+     | same reason sign-in is: an agency user signed in on the `web` guard must
+     | still be able to help a client through this flow.
+     */
+    Route::middleware('guest:customer')->group(function (): void {
+        Route::get('forgot-password', [PasswordResetController::class, 'request'])
+            ->name('password.request');
+        Route::post('forgot-password', [PasswordResetController::class, 'email'])
+            ->middleware('throttle:6,1')
+            ->name('password.email');
+
+        Route::get('reset-password/{token}', [PasswordResetController::class, 'reset'])
+            ->name('password.reset');
+        Route::post('reset-password', [PasswordResetController::class, 'update'])
+            ->middleware('throttle:6,1')
+            ->name('password.update');
     });
 
     Route::post('logout', [SessionController::class, 'destroy'])

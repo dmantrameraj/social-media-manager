@@ -6,6 +6,62 @@
         <div class="lg:col-span-2 space-y-6">
             <article class="rounded-xl border border-slate-200 bg-white p-6">
                 <p class="whitespace-pre-wrap text-sm">{{ $post->body }}</p>
+
+                @if ($post->media->isNotEmpty())
+                    {{--
+                     | Previewed through agency.media.file: a signed, short-lived
+                     | route that streams the bytes after MediaPolicy@download.
+                     | Never a disk path -- the files are on a private disk.
+                     |
+                     | Images only. A video or PDF thumbnail would mean streaming
+                     | the whole file to draw a 64px tile, so those show their
+                     | type instead.
+                    --}}
+                    <div class="mt-5 border-t border-slate-100 pt-4">
+                        <h2 class="text-sm font-semibold">
+                            Attached media ({{ $post->media->count() }})
+                        </h2>
+
+                        <ol class="mt-2 space-y-3 text-sm">
+                            @foreach ($post->media as $item)
+                                @php $preview = $previews[$item->getKey()] ?? null; @endphp
+
+                                <li class="flex items-start gap-3">
+                                    @if ($preview !== null)
+                                        {{-- Staff see what the client will see, rather than
+                                             approving a filename. Signed and short-lived;
+                                             the files are on a private disk. --}}
+                                        <img src="{{ $preview }}" alt="{{ $item->describedAs() }}"
+                                             loading="lazy"
+                                             class="h-16 w-16 shrink-0 rounded-lg border border-slate-200 object-cover">
+                                    @else
+                                        <span class="grid h-16 w-16 shrink-0 place-items-center rounded-lg
+                                                     border border-slate-200 bg-slate-50 text-xs text-slate-500">
+                                            {{ strtoupper($item->extension) }}
+                                        </span>
+                                    @endif
+
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block truncate">{{ $item->original_name }}</span>
+                                        @if ($item->needsAltText())
+                                            {{-- Flagged where someone is already looking at
+                                                 the post, while it can still be fixed before
+                                                 it goes out. --}}
+                                            <a href="{{ route('agency.media.index', ['brand' => $item->customer_id]) }}"
+                                               class="text-xs text-amber-700 underline">
+                                                No description — add one before publishing
+                                            </a>
+                                        @else
+                                            <span class="block truncate text-xs text-slate-500">
+                                                {{ $item->alt_text }}
+                                            </span>
+                                        @endif
+                                    </span>
+                                </li>
+                            @endforeach
+                        </ol>
+                    </div>
+                @endif
             </article>
 
             <section class="rounded-xl border border-slate-200 bg-white p-6">
