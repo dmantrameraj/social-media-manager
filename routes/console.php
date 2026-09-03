@@ -51,6 +51,23 @@ Schedule::command(
     ->runInBackground();
 
 /*
+ | The dispatcher. docs/06-PUBLISHING-ENGINE.md §6: every minute, claiming and
+ | queueing only -- it never calls a provider, so it finishes in milliseconds
+ | and cannot be the thing that times out.
+ |
+ | Until this existed nothing drove the publishing engine at all: a scheduled
+ | post stayed scheduled for ever, however complete the engine behind it was.
+ |
+ | withoutOverlapping because two ticks racing would both scan the same rows.
+ | They could not double-publish -- claiming is atomic -- but the loser would
+ | burn a tick doing nothing.
+ */
+Schedule::command('publishing:dispatch-due')
+    ->everyMinute()
+    ->withoutOverlapping(5)
+    ->runInBackground();
+
+/*
  | Every ten minutes: a reservation stranded by a dead worker costs a tenant
  | real spending power, so it should not sit for an hour.
  */
@@ -87,23 +104,23 @@ Schedule::command('ai:reset-monthly-credits')
 Schedule::command('ai:reconcile-credits')->dailyAt('04:20');
 
 /*
- | Retention. Billing has been stamping tenants.purge_after on cancellation
- | since it shipped and nothing consumed it, so the 60-day promise in
+ | Retention, warning first. config('tenancy.purge_warning_days') has held
+ | [30, 7] since Phase 0 and nothing read it until this shipped -- by the time
+ | a tenant is due, warning them is pointless.
+ */
+Schedule::command('platform:warn-pending-purge')
+    ->dailyAt('04:00')
+    ->withoutOverlapping(30);
+
+/*
+ | Billing has been stamping tenants.purge_after on cancellation since it
+ | shipped and nothing consumed it, so the 60-day promise in
  | docs/10-SECURITY.md §9 was a date written into a column.
  |
  | Not in the background: this is the most destructive thing the application
  | does, and its output should land where schedule:run's own logging captures
  | it rather than in a detached process nobody reads.
  */
-/*
- | Before the purge, not inside it: by the time a tenant is due, warning them
- | is pointless. config('tenancy.purge_warning_days') has held [30, 7] since
- | Phase 0 and nothing read it until this shipped.
- */
-Schedule::command('platform:warn-pending-purge')
-    ->dailyAt('04:00')
-    ->withoutOverlapping(30);
-
 Schedule::command('platform:purge-expired-data')
     ->dailyAt('04:10')
     ->withoutOverlapping(60);

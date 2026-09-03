@@ -36,6 +36,13 @@ return [
     'dispatch_batch_size' => (int) env('PUBLISHING_DISPATCH_BATCH', 200),
 
     /*
+     | The queue PublishPostTarget runs on. Named separately from the default
+     | so a backlog of posts cannot starve notifications or media processing --
+     | the worker in routes/console.php lists it first for the same reason.
+     */
+    'queue' => env('PUBLISHING_QUEUE', 'publishing'),
+
+    /*
      | Minimum lead time when scheduling, so a post cannot be created into the
      | same second the sweeper is already scanning.
      */

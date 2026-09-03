@@ -28,6 +28,8 @@ use Illuminate\Support\Carbon;
  * @property ?Carbon $scheduled_at
  * @property ?Carbon $locked_at
  * @property ?Carbon $next_attempt_at
+ * @property ?array<string, mixed> $meta Per-platform fields set at scheduling
+ * @property ?array<string, mixed> $meta_override Per-platform fields overridden on this target
  * @property-read Post $post
  * @property-read SocialAccount $socialAccount
  */
