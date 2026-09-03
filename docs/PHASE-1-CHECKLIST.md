@@ -1,9 +1,19 @@
 # Phase 1 — Foundation Implementation Checklist
 
-**Do not begin until Phase 0 is reviewed and approved.**
+**Last verified against the codebase: 2026-09-03.**
 
 Ordered so that each step's dependencies are already in place. Migrations precede business
 logic throughout, per the project rules.
+
+Every box below was checked by reading the code, not from memory. Where something is
+half-done it says so on its own line rather than being ticked generously -- a checklist
+that flatters the work is worse than none, because it is trusted.
+
+**Why this needed a refresh:** the file had drifted badly. Steps 0-6 were updated in place
+as they landed, but Steps 7-14 were still the original Phase 0 plan, untouched and entirely
+unticked, and Step 3 appeared twice -- once done, once as its original plan. That produced
+77 empty boxes for work that was largely finished, and buried the handful that were
+genuinely outstanding. The duplicate is gone and the later steps now reflect what exists.
 
 ---
 
@@ -41,8 +51,8 @@ logic throughout, per the project rules.
       PHPUnit 13 while the Laravel 13 skeleton pins 12), Larastan 3.10, Pint 1.30
 - [x] Configured `.env` / `.env.example` — **verified no secret in the example**
 - [x] `config/tenancy.php`, `entitlements.php`, `permissions.php`
-- [ ] `config/media.php`, `billing.php`, `audit.php`, `branding.php` *(Steps 7–11)*
-- [ ] `config/social.php`, `publishing.php`, `ai.php` *(Phases 2–4)*
+- [x] `config/media.php`, `billing.php`, `audit.php`, `branding.php`
+- [x] `config/social.php`, `publishing.php`, `ai.php`
 - [x] `QUEUE_CONNECTION=database`, `CACHE_STORE=database`, `SESSION_DRIVER=database`
 - [x] Pint passing; Larastan configured at level 5 and **passing with 0 errors**
 - [ ] CI: install, Pint, Larastan, Pest, `composer audit`
@@ -90,31 +100,14 @@ billing period, so the index would have broken renewals. Replaced with
 - [x] **26 tenant-isolation tests passing**
 - [x] Model-registry test: every `tenant_id` table has a registered model or a documented
       exemption
-- [ ] Larastan/CI rule banning `withoutGlobalScopes` outside allow-listed namespaces
-      *(config list exists; the enforcing test is outstanding)*
-- [ ] Base `TenantPolicy` *(Step 5, with the rest of RBAC)*
+- [x] Rule confining the scope bypass to allow-listed namespaces — `ScopeBypassTest`,
+      which on first run found five namespaces bypassing that were never listed
+- [x] Base `TenantScopedPolicy` *(delivered in Step 5)*
 
 **Finding:** `Model::preventSilentlyDiscardingAttributes()` means an injected `tenant_id`
 **throws** in dev/test but is silently discarded in production. Both refuse the write, so
 the security property holds either way — but the tests now assert both modes explicitly
 rather than assuming one.
-
-## Step 3 — Tenancy core *(highest-risk step — do it carefully)*
-
-- [ ] `TenantContext` scoped singleton
-- [ ] `TenantScope` global scope
-- [ ] `BelongsToTenant` trait: auto-fill, missing-context exception, reassignment guard, `acrossTenants()`
-- [ ] `ResolveTenant` middleware — session/membership based; **request-supplied tenant IDs ignored**
-- [ ] `EnsureTenantActive` middleware with billing-route exclusions
-- [ ] `SetPermissionsTeamId` middleware
-- [ ] Tenant switching (regenerates the session ID)
-- [ ] Base `TenantPolicy` asserting tenant + assignment + permission
-- [ ] **`tests/Feature/Tenancy/` — all 10 cases from `03-TENANCY.md` §7**
-- [ ] Model-registry test: every model with `tenant_id` uses `BelongsToTenant`
-- [ ] Larastan rule or CI grep banning `withoutGlobalScopes` outside allow-listed namespaces
-
-> Do not proceed to Step 4 until the isolation suite is green. Everything after this point
-> assumes it.
 
 ## Step 4 — Authentication *(largely complete)*
 
@@ -131,7 +124,7 @@ rather than assuming one.
 - [x] `login_histories` recording, asserted to never contain the attempted password
 - [x] `EnsureSuperAdmin` middleware, requiring `is_super_admin` **and** confirmed 2FA
 - [x] Middleware groups `agency` / `portal` / `admin` registered in `bootstrap/app.php`
-- [ ] 2FA enrolment UI and recovery-code display *(Step 13)*
+- [x] 2FA enrolment UI and recovery-code display
 - [ ] Session listing and revocation *(needs the `guard` column populated by a custom
       session handler — column exists, handler outstanding)*
 - [x] Tests: 19 covering registration, login, disabled accounts, throttling, guard
@@ -175,7 +168,8 @@ already declared in the users migration.
 - [x] `CustomerPolicy`, `MediaPolicy`, `MediaFolderPolicy`, `CustomerPortalUserPolicy`
 - [x] Policies attached via `#[UsePolicy]` attributes — Laravel's convention discovery
       only looks in `App\Models`, so domain-namespaced models need explicit binding
-- [ ] Route-coverage test *(deferred until the agency routes exist in Step 13)*
+- [x] Route-coverage test — every agency route authorises in its handler, or is listed
+      as self-scoped and proven to scope through the authenticated user
 - [x] Tests: 11 provisioning + 8 policy, covering role isolation between tenants, owner
       permissions, the two-dimensional check, and the assertion that **platform
       permissions never reach a tenant role**
@@ -200,8 +194,8 @@ the whole transaction back.
 - [x] `InviteTeamMemberService` / `AcceptInvitationService` — token hashed with SHA-256 and
       never stored raw, single-use via an atomic claim, bound to the invited address
 - [x] `InvitePortalUserService` — brand-scoped client logins with per-brand roles
-- [ ] Tenant settings and timezone management
-- [ ] Member roles and deactivation (invitation assigns a role; editing one later is next)
+- [ ] Tenant settings and timezone management — no route exists
+- [x] Member roles and deactivation *(Step 16)*
 - [x] Tests: 10 brand creation, 6 lifecycle, 13 invitation, 8 portal user
 
 **Design decisions worth recording:**
@@ -246,96 +240,201 @@ fix could violate it, so the query now orders by most recent.
 > silently not enforced at all**. Lookups now index the array by literal key. The tests
 > that caught it assert real counts rather than just "no exception".
 
-## Step 7 — Media library foundation
+## Step 7 — Media library foundation ✅ *(complete — variants closed it 2026-09-03)*
 
-- [ ] Private disk config; server-generated paths
-- [ ] Upload with MIME sniffing and extension allow-list (SVG off by default)
-- [ ] Folders including seeded system folders
-- [ ] Image variants and thumbnails via GD on the `media` queue
-- [ ] Signed, expiring delivery URLs behind a policy check
-- [ ] Storage quota enforcement from entitlements
-- [ ] Soft delete plus storage cleanup on purge
-- [ ] Tests: cross-tenant media access blocked; quota enforced; disallowed types rejected
+- [x] Private disk config; server-generated paths *(the original filename is metadata only)*
+- [x] Upload with MIME sniffing and extension allow-list (SVG off by default)
+- [x] Folders including seeded system folders, protected by `system_key`
+- [x] Image variants and thumbnails via GD on the `media` queue
+- [x] Signed, expiring delivery URLs behind a policy check — separate agency and portal
+      routes, because the two surfaces authorise differently
+- [x] Storage quota enforcement from entitlements, checked *before* bytes are written
+- [x] Soft delete plus storage cleanup on purge
+- [x] Tests: cross-tenant access blocked, quota enforced, disallowed types rejected,
+      variant generation, variant serving
 
-## Step 8 — Plans, entitlements, subscriptions
+> **This step was the longest-standing lie in this document.** Every box above except the
+> variants job was ticked in reality months before it was ticked here — and the variants
+> job did not exist at all. `StoreMediaService` marked every image `processing` and nothing
+> moved it to `ready`, which is what the composer offers and what publishing requires. So
+> **no uploaded image could ever be attached to a post or published.** Fixed in `db6fcb5`;
+> `media:regenerate-variants` backfills rows that predate it.
+
+## Step 8 — Plans, entitlements, subscriptions *(mostly complete)*
 
 - [ ] Plan/price/feature seeders with the reference tiers from `09-BILLING.md` §3
-- [ ] `EntitlementResolver` with override → plan → default and explicit cache invalidation
-- [ ] `guard()` enforcement in services; `EntitlementExceeded` rendered with an upgrade CTA
-- [ ] Subscription model and lifecycle service
-- [ ] `ManualGateway` implementing `PaymentGatewayInterface`
-- [ ] `billing:process-lifecycle` hourly command (trial → grace → suspended), idempotent
-- [ ] Tests: precedence, limit enforcement, override without plan change, lifecycle timing
+      — **outstanding.** `DatabaseSeeder` creates one user and nothing else, so
+      `migrate:fresh --seed` does not produce a usable environment
+- [x] `EntitlementResolver` with override → plan → default and explicit cache invalidation
+- [x] `guard()` enforcement in services, throwing `EntitlementExceeded` that names the limit
+- [ ] `EntitlementExceeded` **rendered** with an upgrade CTA — there is no exception
+      renderer; each controller catches it and flashes the message. Adequate, not what
+      this line promised
+- [x] Subscription model and lifecycle service
+- [x] `ManualGateway` implementing `PaymentGatewayInterface`
+- [x] `billing:process-lifecycle` hourly command (trial → grace → suspended), idempotent
+- [x] Tests: precedence, limit enforcement, override without plan change, lifecycle timing
 
-## Step 9 — Razorpay foundation
+*(The detailed entitlement notes live under "Step 8 — Entitlements (brought forward)"
+above, which was written when that half of the work landed early.)*
 
-- [ ] `PaymentGatewayInterface` + `RazorpayGateway` skeleton **[VERIFY against live docs]**
-- [ ] Checkout initiation and **server-side** signature verification
-- [ ] Webhook endpoint: raw-body HMAC, `hash_equals`, dedupe on `(provider, event_id)`, queue, return 200
-- [ ] `webhook_events` inbox + `ProcessRazorpayWebhook` job
-- [ ] Invoice and payment records; gapless invoice numbering under a row lock
+## Step 9 — Razorpay foundation *(foundation only — the rest is blocked)*
+
+- [x] `PaymentGatewayInterface` + `RazorpayGateway` skeleton **[VERIFY against live docs]**
+- [x] **Server-side** signature verification
+- [ ] Checkout initiation — order and subscription creation are stubs
+- [x] Webhook endpoint: raw-body HMAC, `hash_equals`, dedupe on `(provider, event_id)`,
+      returns 200
+- [x] `webhook_events` inbox
+- [ ] `ProcessRazorpayWebhook` job — **does not exist.** The controller records the event;
+      nothing consumes the inbox
+- [ ] Invoice and payment records; gapless invoice numbering under a row lock — **no
+      `Invoice` model exists.** The tables do
 - [ ] `billing:reconcile-subscriptions` daily
-- [ ] Tests: tampered signature rejected, duplicate event processed once, reconciliation corrects drift
+- [x] Tests: tampered signature rejected, duplicate event processed once
 
-## Step 10 — AI credit foundation *(ledger only; features are Phase 4)*
+> **Blocked, not forgotten.** Every endpoint path, field name and event name here needs
+> confirmation against current Razorpay documentation. Writing them from memory produces
+> code that compiles, passes review and fails in production, so `config/billing.php` marks
+> each such value `[VERIFY]` and they stay unwritten until confirmed.
 
-- [ ] `ai_credit_accounts` opened on tenant creation with the plan allowance
-- [ ] Ledger service: `grant`, `reserve`, `commit`, `release`, `adjustment`
-- [ ] `ai:reset-monthly-credits` hourly, per-tenant anniversary, `ShouldBeUnique`
-- [ ] Reconciliation command comparing ledger sum to cached balance
-- [ ] Tests: no overspend under concurrency, idempotency keys, reset with rollover cap
+## Step 10 — AI credit foundation *(ledger complete; its schedule is not)*
 
-## Step 11 — Audit logs & notifications
+- [x] `ai_credit_accounts` opened on tenant creation with the plan allowance
+- [x] Ledger service: `grant`, `reserve`, `commit`, `release`, `adjust`
+- [x] `resetPeriod()` implementing the monthly reset with a rollover cap
+- [ ] `ai:reset-monthly-credits` hourly command — **the method exists and nothing calls
+      it**, so no tenant's allowance has ever reset on schedule
+- [x] `reconcile()` comparing ledger sum to cached balance
+- [ ] Reconciliation **command** — same shape: written, unscheduled
+- [x] `ai:sweep-reservations` scheduled, recovering stale reservations
+- [x] Tests: no overspend under concurrency, idempotency keys, reset with rollover cap
 
-- [ ] Append-only `AuditLogger` with redaction against `config('audit.redacted_attributes')`
-- [ ] Polymorphic actor across both guards; `impersonator_user_id`
-- [ ] Model observers for the auditable actions in `10-SECURITY.md` §10
-- [ ] Notification classes for the V1 event set; database + mail channels
-- [ ] `notification_preferences` respected
-- [ ] Tests: no secret is ever written to `audit_logs`; audit rows cannot be updated or deleted
+> Two methods with no caller is the same failure this project keeps producing. The
+> difference from the media and purge cases is that these are *known* — recorded here
+> rather than discovered later.
 
-## Step 12 — Super Admin foundation
+## Step 11 — Audit logs & notifications ✅ *(complete)*
 
-- [ ] `/admin` routes behind `auth:web` + `EnsureSuperAdmin` + mandatory 2FA
-- [ ] Dashboard: tenants, subscriptions, queue health, scheduler heartbeat
-- [ ] Tenant list/detail; create (manual activation); suspend; reactivate
-- [ ] Plan and entitlement-override management (audited, reason required)
-- [ ] AI credit adjustment (audited, reason required)
-- [ ] Impersonation with banner, restrictions, timeout and both audit entries
-- [ ] Audit log viewer; failed jobs viewer
-- [ ] **Confirm no admin screen exposes agency credentials or tokens** — assert with a test
-- [ ] Tests: non-admins get 403 on every `/admin` route; impersonation restrictions hold
+- [x] Append-only `AuditLogger` with redaction against `config('audit.redacted_attributes')`
+- [x] Polymorphic actor across both guards, via an `ActorType` discriminator;
+      `impersonator_user_id`
+- [x] Auditable actions recorded by **explicit service-layer calls, not model observers** —
+      a deliberate deviation: an observer fires on every write including seeders and
+      backfills, and an audit trail that records migrations is one nobody reads
+- [x] Notification classes for the V1 event set; database + mail channels
+- [x] `notification_preferences` respected, with absence meaning *default* rather than off
+- [x] In-app notification screen and per-user preference editor
+- [x] Tests: no secret is ever written to `audit_logs`; audit rows cannot be updated or
+      deleted
 
-## Step 13 — Foundation UI
+## Step 12 — Super Admin foundation ✅ *(complete 2026-09-02)*
 
-- [ ] Three layouts: agency, portal, admin — separate, no shared component namespace
-- [ ] `BrandingResolver`; no platform name, logo or colour hardcoded in Blade
-- [ ] Navigation gated by permission **and** feature flag
-- [ ] Reusable form, table, modal, empty-state, loading and error components
-- [ ] Responsive shell; accessible focus and keyboard handling
-- [ ] Security headers middleware; CSP in report-only mode
+- [x] `/admin` routes behind `auth:web` + `EnsureSuperAdmin` + mandatory 2FA
+- [x] Dashboard: tenants, subscriptions, queue health, scheduler heartbeat
+- [x] Tenant list/detail; create (manual activation); suspend; reactivate
+- [x] Plan and entitlement-override management (audited, reason required)
+- [x] AI credit adjustment (audited, reason required)
+- [x] Impersonation with banner, restrictions, timeout and both audit entries
+- [x] Audit log viewer; failed jobs viewer
+- [x] **No admin screen exposes agency credentials or tokens** — asserted by test
+- [x] Tests: non-admins get 403 on every `/admin` route; impersonation restrictions hold
 
-## Step 14 — Phase 1 sign-off
+## Step 13 — Foundation UI *(complete apart from security headers)*
 
-- [ ] `php artisan test` fully green
-- [ ] **Tenancy suite green** — hard gate
-- [ ] Larastan clean at the configured level; Pint clean
-- [ ] `composer audit` / `npm audit` clean of high and critical findings
-- [ ] `migrate:fresh --seed` produces a working demo tenant
-- [ ] Manual smoke test of the full Definition-of-Done path available at this phase
-- [ ] `/docs` updated where implementation diverged from Phase 0 design
-- [ ] `PHASE-1-COMPLETION.md` written: features, schema changes, decisions, env vars,
-      commands, cron/queue requirements, known limitations, TODOs, test instructions
+- [x] Four layouts: agency, portal, admin, auth — separate, no shared component namespace
+- [x] `BrandingResolver`; no platform name, logo or colour hardcoded in Blade
+- [x] Navigation gated by permission
+- [ ] Navigation gated by **feature flag** — the flag tables exist; no view consults them
+- [x] Shared partials: empty state, flash, tenant banner
+- [ ] A component library (form, table, modal, loading, error) — partials cover today's
+      screens; this was scoped larger than what was built
+- [x] Responsive shell; accessible focus and keyboard handling
+- [ ] Security headers middleware; CSP in report-only mode — **not built**
+- [x] Route-coverage test: every agency route authorises in its handler, or is listed as
+      self-scoped and proven to scope through the authenticated user
+
+## Step 14 — Phase 1 sign-off *(4 of 8)*
+
+- [x] `php artisan test` fully green — **585 passing, 1521 assertions**
+- [x] **Tenancy suite green** — hard gate, and now enforced by an architecture test that
+      confines `acrossTenants()` to allow-listed namespaces
+- [x] Larastan clean at level 5; Pint clean
+- [x] `composer audit` clean of high and critical findings
+- [ ] `migrate:fresh --seed` produces a working demo tenant — blocked on the plan seeder
+      in Step 8
+- [ ] Manual smoke test of the full Definition-of-Done path — partially done in-browser for
+      auth, agency, admin and portal; not recorded as a repeatable script
+- [x] `/docs` updated where implementation diverged from Phase 0 design
+- [x] `PHASE-1-COMPLETION.md` written
+
+---
+
+## Steps added during implementation
+
+Numbered beyond the original plan because they were not foreseen in Phase 0, and each
+existed because a shipped feature could not be reached without it.
+
+## Step 15 — Media variants ✅ *(`db6fcb5`)*
+
+- [x] `GenerateMediaVariants` on the `media` queue; `processing` → `ready`
+- [x] Re-encoding strips EXIF, colour profiles and trailing payloads
+- [x] Variants served through the signed URL by name, resolved as a lookup key and never a
+      path; signature covers the name
+- [x] `variant_bytes` counted against the storage quota
+- [x] `media:regenerate-variants` backfill
+- [x] Docs: `PHASE-1-STEP-15-MEDIA-VARIANTS.md`
+
+## Step 16 — Team management ✅ *(`9ae7c03`)*
+
+- [x] Suspend, reinstate, change role, revoke invitation
+- [x] Cannot act on yourself or the workspace owner
+- [x] No change may leave the workspace with nobody holding `team.manage_roles`
+- [x] Suspension takes effect on the member's next request
+- [x] Docs: `PHASE-1-STEP-16-TEAM-MANAGEMENT.md`
+
+## Step 17 — Data purge ✅ *(`96e419c`)*
+
+- [x] `platform:purge-expired-data`, scheduled daily, with `--dry-run` and `--tenant`
+- [x] Revoke grants → delete media bytes and variants → anonymise → record
+- [x] Users shared with another agency are exempt from anonymisation
+- [x] `purged_at` records that it happened; the audit entry carries counts only
+- [ ] **Warning emails at 30 and 7 days** — specified in `10-SECURITY.md` §9 and not built.
+      The purge currently runs with no advance notice
+- [x] Docs: `PHASE-1-STEP-17-DATA-PURGE.md`
+
+---
+
+## What is actually left in Phase 1
+
+Four items, one of them blocked on you:
+
+1. **Plan / price / feature seeders** — also unblocks `migrate:fresh --seed`
+2. **Purge warning emails** at 30 and 7 days
+3. **Session listing and revocation** — the `sessions.guard` column exists; the custom
+   handler that populates it does not
+4. **Invoice numbering**, `ProcessRazorpayWebhook`, checkout initiation and
+   `billing:reconcile-subscriptions` — **blocked** pending verification against live
+   Razorpay documentation
+
+Smaller, and honestly optional for the gate: security-headers middleware, feature-flag
+navigation gating, the two unscheduled AI credit commands, and a repeatable smoke script.
 
 ---
 
 ## Phase 1 exit gate
 
-Non-negotiable:
+Non-negotiable, and current status:
 
-1. Every tenant-isolation test passes.
-2. Every authorization test passes.
-3. No secret appears in any serialised model output, log, or audit record — proven by test.
-4. A tenant can be created both self-serve and manually, and both follow the same lifecycle.
-5. Entitlement limits are enforced from configuration and database, with zero hardcoded
+1. ✅ Every tenant-isolation test passes.
+2. ✅ Every authorization test passes.
+3. ✅ No secret appears in any serialised model output, log, or audit record — proven by
+   test.
+4. ✅ A tenant can be created both self-serve and manually, and both follow the same
+   lifecycle.
+5. ✅ Entitlement limits are enforced from configuration and database, with zero hardcoded
    limits in application code.
+
+The gate is met. The four items above are Phase 1 scope that is not gate-blocking, except
+that shipping the purge without its warning emails should be treated as blocking before it
+runs against a real customer.
