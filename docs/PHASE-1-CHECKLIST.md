@@ -125,10 +125,12 @@ rather than assuming one.
 - [x] `EnsureSuperAdmin` middleware, requiring `is_super_admin` **and** confirmed 2FA
 - [x] Middleware groups `agency` / `portal` / `admin` registered in `bootstrap/app.php`
 - [x] 2FA enrolment UI and recovery-code display
-- [ ] Session listing and revocation *(needs the `guard` column populated by a custom
-      session handler — column exists, handler outstanding)*
+- [x] Session listing and revocation — `GuardAwareSessionHandler` populates
+      `sessions.guard`; "Signed-in devices" screen lists, revokes one, revokes
+      all others. Reachable from the nav, which notification settings was not
+      either until this pass found it
 - [x] Tests: 19 covering registration, login, disabled accounts, throttling, guard
-      separation, and password non-storage
+      separation, and password non-storage; 14 more for session tracking and revocation
 
 **Two findings, both fixed:**
 
@@ -408,17 +410,18 @@ existed because a shipped feature could not be reached without it.
 
 ## What is actually left in Phase 1
 
-Four items, one of them blocked on you:
+One item, and it is not ours to close:
 
 1. ~~Plan / price / feature seeders~~ — **done**; `migrate:fresh --seed` works
 2. ~~Purge warning emails at 30 and 7 days~~ — **done**
-3. **Session listing and revocation** — the `sessions.guard` column exists; the custom
-   handler that populates it does not
+3. ~~Session listing and revocation~~ — **done**; `GuardAwareSessionHandler` plus the
+   "Signed-in devices" screen
 4. **Invoice numbering**, `ProcessRazorpayWebhook`, checkout initiation and
    `billing:reconcile-subscriptions` — **blocked** pending verification against live
    Razorpay documentation
 
-Which leaves **one actionable item and one blocked one.**
+Every self-contained gap in Phase 1 is closed. What remains needs live provider
+documentation, which is not something to guess at — see §64 of the master prompt.
 
 Smaller, and honestly optional for the gate: security-headers middleware, feature-flag
 navigation gating, the two unscheduled AI credit commands, and a repeatable smoke script.
@@ -438,6 +441,5 @@ Non-negotiable, and current status:
 5. ✅ Entitlement limits are enforced from configuration and database, with zero hardcoded
    limits in application code.
 
-The gate is met. The four items above are Phase 1 scope that is not gate-blocking, except
-that shipping the purge without its warning emails should be treated as blocking before it
-runs against a real customer.
+The gate is met. Razorpay is the only remaining Phase 1 item, and it is blocked on
+external verification rather than on further implementation work here.

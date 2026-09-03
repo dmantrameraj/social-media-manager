@@ -92,6 +92,28 @@
                 @endif
             </a>
 
+            {{-- Account settings sit with the identity they belong to, next to
+                 sign-out, rather than in the main nav: they are about the person
+                 signed in, not about the agency's work. No permission gates
+                 either -- they are the viewer's own. --}}
+            <a href="{{ route('agency.notifications.settings') }}"
+               @if (request()->routeIs('agency.notifications.settings*')) aria-current="page" @endif
+               class="mb-1 block rounded-lg px-3 py-2 text-sm transition
+                      {{ request()->routeIs('agency.notifications.settings*')
+                          ? 'bg-slate-900 text-white font-medium'
+                          : 'text-slate-700 hover:bg-slate-100' }}">
+                Notification settings
+            </a>
+
+            <a href="{{ route('agency.sessions.index') }}"
+               @if (request()->routeIs('agency.sessions.*')) aria-current="page" @endif
+               class="mb-2 block rounded-lg px-3 py-2 text-sm transition
+                      {{ request()->routeIs('agency.sessions.*')
+                          ? 'bg-slate-900 text-white font-medium'
+                          : 'text-slate-700 hover:bg-slate-100' }}">
+                Signed-in devices
+            </a>
+
             <p class="px-3 pb-2 text-xs text-slate-500 truncate">{{ auth()->user()?->name }}</p>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf

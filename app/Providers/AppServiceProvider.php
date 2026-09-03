@@ -10,6 +10,7 @@ use App\Domain\AI\Providers\AnthropicProvider;
 use App\Domain\AI\Providers\FakeAiProvider;
 use App\Domain\Audit\Listeners\RecordAuthenticationEvent;
 use App\Domain\Identity\Models\User;
+use App\Domain\Identity\Sessions\GuardAwareSessionHandler;
 use App\Domain\Social\ProviderRegistry;
 use App\Domain\Social\Providers\Fake\FakeProvider;
 use App\Support\TenantContext;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -46,6 +48,26 @@ class AppServiceProvider extends ServiceProvider
         $this->registerPlatformGates();
         $this->registerSocialProviders();
         $this->registerAiProvider();
+        $this->registerSessionHandler();
+    }
+
+    /**
+     * Replace the database session driver with the guard-aware one.
+     *
+     * SessionManager::callCustomCreator() wraps whatever this returns in a
+     * Store, so the handler is returned bare exactly as the built-in driver
+     * builds it.
+     */
+    private function registerSessionHandler(): void
+    {
+        Session::extend('database', function ($app): GuardAwareSessionHandler {
+            return new GuardAwareSessionHandler(
+                $app['db']->connection(config('session.connection')),
+                (string) config('session.table', 'sessions'),
+                (int) config('session.lifetime', 120),
+                $app,
+            );
+        });
     }
 
     /**

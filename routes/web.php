@@ -19,6 +19,7 @@ use App\Http\Controllers\Agency\MediaFileController;
 use App\Http\Controllers\Agency\NotificationController;
 use App\Http\Controllers\Agency\NotificationSettingsController;
 use App\Http\Controllers\Agency\PostController;
+use App\Http\Controllers\Agency\SessionController;
 use App\Http\Controllers\Agency\SuspendedController;
 use App\Http\Controllers\Agency\TeamController;
 use App\Http\Controllers\InvitationController;
@@ -110,6 +111,16 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
     Route::get('media/{media}/file', MediaFileController::class)
         ->middleware('signed')
         ->name('media.file');
+
+    /*
+     | The signed-in user's own devices. sessions.guard was added for this in
+     | the first migration and stayed null until a guard-aware handler wrote it.
+     */
+    Route::get('sessions', [SessionController::class, 'index'])->name('sessions.index');
+    Route::delete('sessions/others', [SessionController::class, 'destroyOthers'])
+        ->name('sessions.destroy-others');
+    Route::delete('sessions/{session}', [SessionController::class, 'destroy'])
+        ->name('sessions.destroy');
 
     Route::get('team', [TeamController::class, 'index'])->name('team.index');
     Route::post('team/invite', [TeamController::class, 'invite'])->name('team.invite');

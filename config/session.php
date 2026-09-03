@@ -230,4 +230,20 @@ return [
 
     'serialization' => 'json',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Tracked guards
+    |--------------------------------------------------------------------------
+    |
+    | GuardAwareSessionHandler writes sessions.user_id and sessions.guard for
+    | whichever of these is authenticated, checked in order.
+    |
+    | Laravel's own handler asks the DEFAULT guard for an id, which records
+    | nothing for a portal session -- and a bare user_id would be ambiguous
+    | between the two tables anyway, since their ids overlap.
+    |
+    */
+
+    'tracked_guards' => ['web', 'customer'],
+
 ];

@@ -355,6 +355,9 @@ it('authorises inside every agency controller action', function (): void {
         'agency.notifications.read-all',
         'agency.notifications.settings',
         'agency.notifications.settings.update',
+        'agency.sessions.index',
+        'agency.sessions.destroy',
+        'agency.sessions.destroy-others',
     ];
 
     $missing = [];
