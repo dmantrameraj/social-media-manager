@@ -67,6 +67,32 @@ function seedPermissions(): void
 }
 
 /**
+ * Every PHP file under app/, as absolute paths.
+ *
+ * Lives here because architecture tests that read the source are plausibly more
+ * than one suite, and a duplicate global function in a second Pest file is a
+ * fatal that kills the whole run.
+ *
+ * @return list<string>
+ */
+function applicationFiles(): array
+{
+    $files = [];
+
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator(app_path(), FilesystemIterator::SKIP_DOTS)
+    );
+
+    foreach ($iterator as $file) {
+        if ($file->isFile() && $file->getExtension() === 'php') {
+            $files[] = $file->getPathname();
+        }
+    }
+
+    return $files;
+}
+
+/**
  * Create a member of $tenant holding $role.
  *
  * Lives here rather than in a test file because two suites needed it and PHP

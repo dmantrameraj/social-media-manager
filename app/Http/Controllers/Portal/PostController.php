@@ -82,7 +82,13 @@ final class PostController extends Controller
              | previously showed only copy.
              */
             'mediaUrls' => $post->media->mapWithKeys(
-                fn ($item) => [$item->getKey() => $mediaUrl->for($item)],
+                /*
+                 | PREVIEW, not thumb: the client is judging the creative, so
+                 | 1080px is the smallest size that is honest about what they
+                 | are approving. Not the original either -- that streamed a
+                 | full-size asset to the client on every post view.
+                 */
+                fn ($item) => [$item->getKey() => $mediaUrl->for($item, variant: 'preview')],
             ),
 
             /*

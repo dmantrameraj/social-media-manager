@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Agency;
 
 use App\Domain\Media\Models\Media;
+use App\Domain\Media\Services\ResolveMediaVariant;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -27,8 +28,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 final class MediaFileController extends Controller
 {
-    public function __invoke(Request $request, Media $media): StreamedResponse
-    {
+    public function __invoke(
+        Request $request,
+        Media $media,
+        ResolveMediaVariant $variants,
+    ): StreamedResponse {
         /*
          | download() rather than view(): it hands over the actual bytes, and
          | the policy draws that distinction on purpose. Route-model binding has
@@ -39,18 +43,26 @@ final class MediaFileController extends Controller
 
         $disk = Storage::disk($media->disk);
 
+        /*
+         | Which file, not whether: the variant name is signed into the URL and
+         | resolved against what the job recorded on the row. Serving the
+         | thumbnail here is the whole point of generating one -- a grid of
+         | 320px tiles was previously streaming full-size originals.
+         */
+        $file = $variants->resolve($media, $request->query('variant'));
+
         // A row whose file has gone is a 404, not a 500: retention can purge a
         // file while the row still references it.
-        abort_unless($disk->exists($media->path), 404);
+        abort_unless($disk->exists($file['path']), 404);
 
         return $disk->response(
-            $media->path,
+            $file['path'],
             $media->original_name,
             [
                 // The mime type established by sniffing at upload, never a
                 // client-declared header. nosniff stops a browser deciding an
                 // "image" is HTML and running it in this origin.
-                'Content-Type' => $media->mime_type,
+                'Content-Type' => $file['mime'],
                 'X-Content-Type-Options' => 'nosniff',
                 'Cache-Control' => 'private, max-age=300, no-transform',
             ],

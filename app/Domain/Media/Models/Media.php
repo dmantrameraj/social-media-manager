@@ -28,6 +28,8 @@ use Illuminate\Support\Facades\Storage;
  *
  * @property int $tenant_id
  * @property MediaStatus $status
+ * @property array<string, string>|null $variants Variant name => stored path
+ * @property int $variant_bytes
  * @property string|null $alt_text
  */
 #[UseFactory(MediaFactory::class)]
@@ -66,6 +68,7 @@ class Media extends Model
         'status',
         'thumbnail_path',
         'variants',
+        'variant_bytes',
     ];
 
     protected function casts(): array

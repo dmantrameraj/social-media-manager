@@ -41,7 +41,13 @@ final class MediaController
              | thumbnail would stream the whole file to draw a tile.
              */
             'previews' => $media->filter(fn (Media $item): bool => $item->isImage() && $item->isUsable())
-                ->mapWithKeys(fn (Media $item) => [$item->getKey() => $urls->forAgency($item)]),
+                // The THUMB variant: these are 320px tiles, and serving the
+                // original into one streamed a multi-megabyte photo through PHP
+                // for every image on the page. Falls back to the original if the
+                // variant is not there yet.
+                ->mapWithKeys(fn (Media $item) => [
+                    $item->getKey() => $urls->forAgency($item, variant: 'thumb'),
+                ]),
 
             'title' => 'Media',
             'brands' => $brands,

@@ -9,6 +9,7 @@ use App\Domain\Customers\Models\Customer;
 use App\Domain\Identity\Models\User;
 use App\Domain\Media\Enums\MediaStatus;
 use App\Domain\Media\Exceptions\MediaRejected;
+use App\Domain\Media\Jobs\GenerateMediaVariants;
 use App\Domain\Media\Models\Media;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,7 @@ final class StoreMediaService
         $directory = sprintf('media/%d/%d', $customer->tenant_id, $customer->getKey());
         $filename = Str::ulid()->toString().'.'.$extension;
 
-        return DB::transaction(function () use (
+        $media = DB::transaction(function () use (
             $customer, $actor, $file, $folderId, $size, $disk, $directory, $filename, $extension, $altText
         ): Media {
             $path = Storage::disk($disk)->putFileAs($directory, $file, $filename);
@@ -92,6 +93,19 @@ final class StoreMediaService
 
             return $media;
         });
+
+        /*
+         | Dispatched AFTER the transaction, not inside it: a worker can pick the
+         | job up before the commit lands and find no such row. Images are stored
+         | `processing` and only this job makes them `ready` -- which is what the
+         | composer offers and what publishing requires -- so an image whose job
+         | never runs is an image that can never be used.
+         */
+        if ($media->isImage()) {
+            GenerateMediaVariants::dispatch($media->getKey());
+        }
+
+        return $media;
     }
 
     /**

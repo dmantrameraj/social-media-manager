@@ -21,9 +21,9 @@ use Illuminate\Support\Facades\URL;
  */
 final class SignedMediaUrl
 {
-    public function for(Media $media, ?int $seconds = null): string
+    public function for(Media $media, ?int $seconds = null, ?string $variant = null): string
     {
-        return $this->sign('portal.media.show', $media, $seconds);
+        return $this->sign('portal.media.show', $media, $seconds, $variant);
     }
 
     /**
@@ -33,12 +33,12 @@ final class SignedMediaUrl
      * differently -- a policy and a permission on one side, brand assignment
      * plus workflow stage on the other.
      */
-    public function forAgency(Media $media, ?int $seconds = null): string
+    public function forAgency(Media $media, ?int $seconds = null, ?string $variant = null): string
     {
-        return $this->sign('agency.media.file', $media, $seconds);
+        return $this->sign('agency.media.file', $media, $seconds, $variant);
     }
 
-    private function sign(string $route, Media $media, ?int $seconds): string
+    private function sign(string $route, Media $media, ?int $seconds, ?string $variant = null): string
     {
         /*
          | A signed route, NOT Media::temporaryUrl().
@@ -53,10 +53,22 @@ final class SignedMediaUrl
          | worth revisiting so large video is served directly by the object
          | store rather than through the web process.
          */
+        $parameters = ['media' => $media->getRouteKey()];
+
+        /*
+         | The variant rides in the signed URL, so it is covered by the
+         | signature and cannot be swapped by hand. The controller still treats
+         | it as a LOOKUP KEY into the row's stored variants rather than as a
+         | path -- a name that came off the wire must never reach the filesystem.
+         */
+        if ($variant !== null) {
+            $parameters['variant'] = $variant;
+        }
+
         return URL::temporarySignedRoute(
             $route,
             now()->addSeconds($seconds ?? (int) config('media.signed_url_ttl', 300)),
-            ['media' => $media->getRouteKey()],
+            $parameters,
         );
     }
 }

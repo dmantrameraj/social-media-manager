@@ -58,6 +58,8 @@ return [
     |
     */
 
+    'queue' => env('MEDIA_QUEUE', 'media'),
+
     'variants' => [
         'thumb' => ['width' => 320, 'height' => 320],
         'preview' => ['width' => 1080, 'height' => 1080],

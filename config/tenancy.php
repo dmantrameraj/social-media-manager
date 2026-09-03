@@ -87,6 +87,24 @@ return [
         'App\\Http\\Livewire\\Admin',
         'App\\Console\\Commands',
         'App\\Jobs',
+        // Queue workers run with no request and therefore no tenant
+        // context; the ids they act on were written by this
+        // application, never supplied by a user.
+        'App\\Domain\\Media\\Jobs',
+
+        /*
+         | Scheduled sweepers and queue workers. Each runs on a timer or a
+         | worker rather than a request, so there is no session to resolve a
+         | tenant from and the work is cross-tenant by definition.
+         |
+         | These were bypassing the scope before they appeared here: the
+         | list was never enforced, so it recorded intent rather than fact.
+         | ScopeBypassTest now fails if a namespace bypasses without being
+         | listed, which is what makes this an allow-list.
+         */
+        'App\\Domain\\AI\\Services',
+        'App\\Domain\\Billing\\Subscriptions',
+        'App\\Domain\\Publishing\\Services',
     ],
 
 ];

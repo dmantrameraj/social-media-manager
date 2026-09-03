@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Domain\Customers\Services\PortalPostQuery;
 use App\Domain\Media\Models\Media;
+use App\Domain\Media\Services\ResolveMediaVariant;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -31,18 +32,26 @@ final class MediaController extends Controller
 {
     public function __construct(private readonly PortalPostQuery $posts) {}
 
-    public function __invoke(Request $request, Media $media): StreamedResponse
-    {
+    public function __invoke(
+        Request $request,
+        Media $media,
+        ResolveMediaVariant $variants,
+    ): StreamedResponse {
         $this->assertVisible($request, $media);
 
         $disk = Storage::disk($media->disk);
 
+        // Which file, not whether: the variant name is signed into the URL and
+        // resolved against what the job recorded. Authorisation above is
+        // unaffected -- a variant belongs to the same row that just passed it.
+        $file = $variants->resolve($media, $request->query('variant'));
+
         // A row whose file has gone missing is a 404, not a 500. Media can be
         // purged by retention while a post still references it.
-        abort_unless($disk->exists($media->path), 404);
+        abort_unless($disk->exists($file['path']), 404);
 
         return $disk->response(
-            $media->path,
+            $file['path'],
             $media->original_name,
             [
                 /*
@@ -53,7 +62,7 @@ final class MediaController extends Controller
                  | different type: an "image" that a browser decides is HTML
                  | would execute in the application's own origin.
                  */
-                'Content-Type' => $media->mime_type,
+                'Content-Type' => $file['mime'],
                 'X-Content-Type-Options' => 'nosniff',
 
                 // Private: this is one client's content behind a signed URL,

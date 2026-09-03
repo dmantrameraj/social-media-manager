@@ -186,7 +186,10 @@ final class EntitlementResolver
                 ->where('tenant_id', $tenant->getKey())
                 ->whereNull('deleted_at')
                 ->whereIn('status', ['ready', 'processing'])
-                ->sum('size_bytes'),
+                // Variants are real files on the same disk. Counting only
+                // the upload would let a tenant at their limit keep writing
+                // derivatives the quota never sees.
+                ->sum(DB::raw('size_bytes + variant_bytes')),
 
             'ai_credits_consumed_this_period' => 0, // Phase 4
 
