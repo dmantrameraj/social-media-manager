@@ -262,9 +262,9 @@ fix could violate it, so the query now orders by most recent.
 
 ## Step 8 — Plans, entitlements, subscriptions *(mostly complete)*
 
-- [ ] Plan/price/feature seeders with the reference tiers from `09-BILLING.md` §3
-      — **outstanding.** `DatabaseSeeder` creates one user and nothing else, so
-      `migrate:fresh --seed` does not produce a usable environment
+- [x] Plan/feature seeders with the reference tiers from `09-BILLING.md` §3.
+      **No prices** — §3 specifies limits and says nothing about money, and
+      fabricating amounts would put invented figures where checkout reads them
 - [x] `EntitlementResolver` with override → plan → default and explicit cache invalidation
 - [x] `guard()` enforcement in services, throwing `EntitlementExceeded` that names the limit
 - [ ] `EntitlementExceeded` **rendered** with an upgrade CTA — there is no exception
@@ -361,8 +361,9 @@ above, which was written when that half of the work landed early.)*
       confines `acrossTenants()` to allow-listed namespaces
 - [x] Larastan clean at level 5; Pint clean
 - [x] `composer audit` clean of high and critical findings
-- [ ] `migrate:fresh --seed` produces a working demo tenant — blocked on the plan seeder
-      in Step 8
+- [x] `migrate:fresh --seed` produces a working demo tenant — run end to end:
+      61 permissions, 4 plans, 36 features, an agency with a brand and a Starter
+      subscription, entitlements resolving from the plan rather than defaults
 - [ ] Manual smoke test of the full Definition-of-Done path — partially done in-browser for
       auth, agency, admin and portal; not recorded as a repeatable script
 - [x] `/docs` updated where implementation diverged from Phase 0 design
@@ -409,13 +410,15 @@ existed because a shipped feature could not be reached without it.
 
 Four items, one of them blocked on you:
 
-1. **Plan / price / feature seeders** — also unblocks `migrate:fresh --seed`
-2. **Purge warning emails** at 30 and 7 days
+1. ~~Plan / price / feature seeders~~ — **done**; `migrate:fresh --seed` works
+2. ~~Purge warning emails at 30 and 7 days~~ — **done**
 3. **Session listing and revocation** — the `sessions.guard` column exists; the custom
    handler that populates it does not
 4. **Invoice numbering**, `ProcessRazorpayWebhook`, checkout initiation and
    `billing:reconcile-subscriptions` — **blocked** pending verification against live
    Razorpay documentation
+
+Which leaves **one actionable item and one blocked one.**
 
 Smaller, and honestly optional for the gate: security-headers middleware, feature-flag
 navigation gating, the two unscheduled AI credit commands, and a repeatable smoke script.

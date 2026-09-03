@@ -110,4 +110,24 @@ return [
         'failed_jobs' => 25,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Demo tenant
+    |--------------------------------------------------------------------------
+    |
+    | Read by DemoTenantSeeder, which refuses to run in production at all.
+    | Declared here rather than read from env() at the call site: a cached
+    | config makes env() return null, and a seeder that silently created a user
+    | with an empty address would be worse than one that failed.
+    |
+    | password null means "generate one and print it once" -- a fixed default
+    | becomes the password on somebody's reachable staging box.
+    |
+    */
+
+    'demo' => [
+        'email' => env('DEMO_EMAIL', 'demo@example.test'),
+        'password' => env('DEMO_PASSWORD'),
+    ],
+
 ];
