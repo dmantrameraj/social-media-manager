@@ -40,6 +40,7 @@ use Illuminate\Support\Carbon;
  * @property ?Carbon $suspended_at
  * @property ?Carbon $cancelled_at
  * @property ?Carbon $purge_after
+ * @property ?Carbon $purged_at
  */
 #[UseFactory(TenantFactory::class)]
 class Tenant extends Model
@@ -71,6 +72,7 @@ class Tenant extends Model
         'suspended_at',
         'cancelled_at',
         'purge_after',
+        'purged_at',
     ];
 
     protected function casts(): array
@@ -83,6 +85,7 @@ class Tenant extends Model
             'suspended_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'purge_after' => 'datetime',
+            'purged_at' => 'datetime',
         ];
     }
 

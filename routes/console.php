@@ -71,6 +71,19 @@ Schedule::command('ai:run-autopilot')
 // Snapshots hold customer business content, so they age out on a schedule.
 Schedule::command('ai:purge-snapshots')->dailyAt('03:40');
 
+/*
+ | Retention. Billing has been stamping tenants.purge_after on cancellation
+ | since it shipped and nothing consumed it, so the 60-day promise in
+ | docs/10-SECURITY.md §9 was a date written into a column.
+ |
+ | Not in the background: this is the most destructive thing the application
+ | does, and its output should land where schedule:run's own logging captures
+ | it rather than in a detached process nobody reads.
+ */
+Schedule::command('platform:purge-expired-data')
+    ->dailyAt('04:10')
+    ->withoutOverlapping(60);
+
 Schedule::command('queue:prune-failed --hours=336')->daily();
 Schedule::command('model:prune')->daily();
 
