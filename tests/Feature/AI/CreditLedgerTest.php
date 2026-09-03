@@ -224,6 +224,44 @@ it('detects drift if the cached balance is tampered with', function (): void {
     expect($this->ledger->reconcile($this->tenant)['drift'])->toBe(899);
 });
 
+it('does not touch balance when reconcile finds no drift', function (): void {
+    // reconcile() is read-only: three other places in this suite call it
+    // after normal activity expecting the balance to be untouched.
+    $this->ledger->grant($this->tenant, 100, 'Plan allowance');
+
+    $this->ledger->reconcile($this->tenant);
+
+    expect($this->ledger->accountFor($this->tenant)->balance)->toBe(100);
+});
+
+it('corrects the cached balance without writing a ledger transaction', function (): void {
+    /*
+     | The ledger is the source of truth, so a drift means the CACHE is
+     | wrong -- not that credits were gained or lost. Correcting it must not
+     | create an adjustment row, which would be a real (and unexplained)
+     | change to what the tenant is owed.
+     */
+    $this->ledger->grant($this->tenant, 100, 'Plan allowance');
+    $this->ledger->accountFor($this->tenant)->forceFill(['balance' => 999])->save();
+
+    $before = AiCreditTransaction::query()->count();
+
+    $result = $this->ledger->correctDrift($this->tenant);
+
+    expect($result)->toBe(['balance' => 999, 'ledger' => 100, 'drift' => 899, 'corrected' => true])
+        ->and($this->ledger->accountFor($this->tenant)->balance)->toBe(100)
+        ->and(AiCreditTransaction::query()->count())->toBe($before);
+});
+
+it('does nothing when there is no drift to correct', function (): void {
+    $this->ledger->grant($this->tenant, 100, 'Plan allowance');
+
+    $result = $this->ledger->correctDrift($this->tenant);
+
+    expect($result['corrected'])->toBeFalse()
+        ->and($this->ledger->accountFor($this->tenant)->balance)->toBe(100);
+});
+
 it('keeps ledgers isolated between tenants', function (): void {
     $other = app(ProvisionTenantService::class)
         ->execute(User::factory()->create(), 'Other Agency');

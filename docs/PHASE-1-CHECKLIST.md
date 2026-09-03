@@ -300,21 +300,26 @@ above, which was written when that half of the work landed early.)*
 > code that compiles, passes review and fails in production, so `config/billing.php` marks
 > each such value `[VERIFY]` and they stay unwritten until confirmed.
 
-## Step 10 — AI credit foundation *(ledger complete; its schedule is not)*
+## Step 10 — AI credit foundation ✅ *(complete)*
 
 - [x] `ai_credit_accounts` opened on tenant creation with the plan allowance
 - [x] Ledger service: `grant`, `reserve`, `commit`, `release`, `adjust`
 - [x] `resetPeriod()` implementing the monthly reset with a rollover cap
-- [ ] `ai:reset-monthly-credits` hourly command — **the method exists and nothing calls
-      it**, so no tenant's allowance has ever reset on schedule
-- [x] `reconcile()` comparing ledger sum to cached balance
-- [ ] Reconciliation **command** — same shape: written, unscheduled
+- [x] `ai:reset-monthly-credits`, hourly. `resetPeriod()` had existed with nothing
+      calling it for more than one tenant, so no tenant's allowance had ever reset on
+      schedule
+- [x] `reconcile()` comparing ledger sum to cached balance — kept read-only
+- [x] `ai:reconcile-credits`, daily. `correctDrift()` brings the cache back in line and
+      is audited when it fires; it writes no ledger transaction, because a drifted cache
+      means the CACHE is wrong, not that credits were gained or lost
 - [x] `ai:sweep-reservations` scheduled, recovering stale reservations
-- [x] Tests: no overspend under concurrency, idempotency keys, reset with rollover cap
+- [x] Tests: no overspend under concurrency, idempotency keys, reset with rollover cap,
+      31 more covering the two maintenance commands and `correctDrift()`
 
-> Two methods with no caller is the same failure this project keeps producing. The
-> difference from the media and purge cases is that these are *known* — recorded here
-> rather than discovered later.
+> Two methods with no caller was the same failure this project kept producing — the
+> media variants job, `MembershipStatus::Suspended`, `purge_after`, the plan seeder, and
+> this. The difference here is that it was *known*, recorded in this file rather than
+> waiting to be discovered.
 
 ## Step 11 — Audit logs & notifications ✅ *(complete)*
 
@@ -424,7 +429,7 @@ Every self-contained gap in Phase 1 is closed. What remains needs live provider
 documentation, which is not something to guess at — see §64 of the master prompt.
 
 Smaller, and honestly optional for the gate: security-headers middleware, feature-flag
-navigation gating, the two unscheduled AI credit commands, and a repeatable smoke script.
+navigation gating, and a repeatable smoke script.
 
 ---
 

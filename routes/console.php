@@ -72,6 +72,21 @@ Schedule::command('ai:run-autopilot')
 Schedule::command('ai:purge-snapshots')->dailyAt('03:40');
 
 /*
+ | Hourly, not daily, because tenant billing anniversaries fall on whatever
+ | hour they signed up in -- a daily run would leave some tenants exhausted
+ | for up to 23 extra hours every month. docs/08-AI-ARCHITECTURE.md §5 has
+ | specified this since the ledger shipped; nothing scheduled it until now.
+ */
+Schedule::command('ai:reset-monthly-credits')
+    ->hourly()
+    ->withoutOverlapping(30)
+    ->runInBackground();
+
+// Corrects only the cached balance, never the ledger, so this can run without
+// the caution a job touching real credit grants would need.
+Schedule::command('ai:reconcile-credits')->dailyAt('04:20');
+
+/*
  | Retention. Billing has been stamping tenants.purge_after on cancellation
  | since it shipped and nothing consumed it, so the 60-day promise in
  | docs/10-SECURITY.md §9 was a date written into a column.

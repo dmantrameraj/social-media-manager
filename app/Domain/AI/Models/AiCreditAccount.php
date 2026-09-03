@@ -14,8 +14,9 @@ use Illuminate\Support\Carbon;
  * Cached credit balance for a tenant.
  *
  * `balance` is a PROJECTION of ai_credit_transactions, never the source of
- * truth. Nothing outside the ledger service writes to it, and a reconciliation
- * command recomputes it from the ledger and reports drift.
+ * truth. Nothing outside the ledger service writes to it: CreditLedger::
+ * reconcile() reports drift against the ledger, and correctDrift() -- run on
+ * schedule by ReconcileCreditsService -- brings the cache back in line.
  * See docs/08-AI-ARCHITECTURE.md §5.
  *
  * @property int $tenant_id

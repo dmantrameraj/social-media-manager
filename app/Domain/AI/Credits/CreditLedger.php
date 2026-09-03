@@ -207,7 +207,7 @@ final class CreditLedger
     }
 
     /**
-     * Recompute the cached balance from the ledger and report drift.
+     * Compare the cached balance against the ledger. Read-only.
      *
      * @return array{balance: int, ledger: int, drift: int}
      */
@@ -215,7 +215,55 @@ final class CreditLedger
     {
         $account = $this->accountFor($tenant);
 
-        $ledger = (int) AiCreditTransaction::query()
+        return [
+            'balance' => $account->balance,
+            'ledger' => $ledger = $this->ledgerSum($account),
+            'drift' => $account->balance - $ledger,
+        ];
+    }
+
+    /**
+     * Bring the cached balance back in line with the ledger, if it has
+     * drifted.
+     *
+     * The ledger is the source of truth and `balance` exists only as a fast
+     * read of it, so a non-zero drift means the CACHE is wrong, not that
+     * credits were gained or lost. Correcting it here writes no transaction --
+     * an `adjustment` row is a real change in what a tenant is owed, made by
+     * an admin for a reason; this fixes a number that was never supposed to
+     * disagree with the rows that actually define it.
+     *
+     * Locked, so a reserve/commit/release racing this cannot be read half-way
+     * through and "corrected" against a balance that was already changing for
+     * a legitimate reason.
+     *
+     * @return array{balance: int, ledger: int, drift: int, corrected: bool}
+     */
+    public function correctDrift(Tenant $tenant): array
+    {
+        return DB::transaction(function () use ($tenant): array {
+            $account = $this->lockAccount($tenant);
+
+            $before = $account->balance;
+            $ledger = $this->ledgerSum($account);
+            $drift = $before - $ledger;
+
+            if ($drift === 0) {
+                return ['balance' => $before, 'ledger' => $ledger, 'drift' => 0, 'corrected' => false];
+            }
+
+            $account->balance = $ledger;
+            $account->save();
+
+            return ['balance' => $before, 'ledger' => $ledger, 'drift' => $drift, 'corrected' => true];
+        });
+    }
+
+    // ------------------------------------------------------------- internals
+
+    private function ledgerSum(AiCreditAccount $account): int
+    {
+        return (int) AiCreditTransaction::query()
             ->where('ai_credit_account_id', $account->getKey())
             ->whereIn('type', [
                 CreditTransactionType::Grant->value,
@@ -225,15 +273,7 @@ final class CreditLedger
                 CreditTransactionType::Adjustment->value,
             ])
             ->sum('amount');
-
-        return [
-            'balance' => $account->balance,
-            'ledger' => $ledger,
-            'drift' => $account->balance - $ledger,
-        ];
     }
-
-    // ------------------------------------------------------------- internals
 
     private function write(
         Tenant $tenant,
