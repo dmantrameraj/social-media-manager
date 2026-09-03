@@ -86,7 +86,12 @@ final class MediaController
                 altText: $validated['alt_text'] ?? null,
             );
         } catch (MediaRejected|EntitlementExceeded $e) {
-            return back()->with('error', $e->getMessage());
+            // Only a quota failure earns the upgrade link. A rejected file --
+            // wrong type, too large -- is not fixed by a bigger plan, and
+            // offering one there would be misdirection.
+            return back()
+                ->with('error', $e->getMessage())
+                ->with('upgrade_prompt', $e instanceof EntitlementExceeded);
         }
 
         return back()->with('status', 'File uploaded.');

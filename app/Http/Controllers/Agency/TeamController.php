@@ -75,7 +75,10 @@ final class TeamController
                 $validated['role'],
             );
         } catch (EntitlementExceeded|RuntimeException $e) {
-            return back()->withInput()->with('error', $e->getMessage());
+            // A seat limit is worth an upgrade link; "already a member" is not.
+            return back()->withInput()
+                ->with('error', $e->getMessage())
+                ->with('upgrade_prompt', $e instanceof EntitlementExceeded);
         }
 
         /*
@@ -117,7 +120,12 @@ final class TeamController
         try {
             $service->reinstate($tenant, $member, $request->user());
         } catch (TeamChangeRejected|EntitlementExceeded $e) {
-            return back()->with('error', $e->getMessage());
+            // Reinstating consumes a seat, so this can fail on the plan limit
+            // -- but it can equally fail because they never accepted, which no
+            // upgrade fixes.
+            return back()
+                ->with('error', $e->getMessage())
+                ->with('upgrade_prompt', $e instanceof EntitlementExceeded);
         }
 
         return back()->with('status', 'Access restored.');

@@ -63,8 +63,11 @@ final class BrandController
         try {
             $brand = $service->execute($this->context->get(), $request->user(), $request->validated());
         } catch (EntitlementExceeded $e) {
-            // Rendered as a clear message with an upgrade path, never a 500.
-            return back()->withInput()->with('error', $e->getMessage());
+            // A clear message with a way out, never a 500. upgrade_prompt is
+            // what the flash partial reads to offer the billing link.
+            return back()->withInput()
+                ->with('error', $e->getMessage())
+                ->with('upgrade_prompt', true);
         }
 
         return redirect()
@@ -114,8 +117,11 @@ final class BrandController
             $service->unarchive($brand);
         } catch (EntitlementExceeded $e) {
             // Restoring consumes a slot again, so this can legitimately fail
-            // on a downgraded plan.
-            return back()->with('error', $e->getMessage());
+            // on a downgraded plan -- which is the case most worth offering an
+            // upgrade on.
+            return back()
+                ->with('error', $e->getMessage())
+                ->with('upgrade_prompt', true);
         }
 
         return redirect()
