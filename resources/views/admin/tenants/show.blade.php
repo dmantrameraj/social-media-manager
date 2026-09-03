@@ -45,9 +45,8 @@
                             <span class="font-medium text-slate-700">
                                 Reason for {{ $tenant->permitsProductAccess() ? 'suspending' : 'reactivating' }}
                             </span>
-                            <input type="text" name="reason" required minlength="5" maxlength="500"
-                                   placeholder="Recorded in the audit trail against your name"
-                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <x-admin.form.input type="text" name="reason" required minlength="5" maxlength="500"
+                                   placeholder="Recorded in the audit trail against your name" />
                         </label>
 
                         <button type="submit"
@@ -119,46 +118,43 @@
 
                         <label class="text-sm">
                             <span class="block font-medium text-slate-700">Key</span>
-                            <select name="key" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <x-admin.form.select name="key" required>
                                 @foreach ($entitlementKeys as $key)
                                     <option value="{{ $key }}">{{ $key }}</option>
                                 @endforeach
-                            </select>
+                            </x-admin.form.select>
                         </label>
 
                         <label class="text-sm">
                             <span class="block font-medium text-slate-700">Type</span>
-                            <select name="value_type" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <x-admin.form.select name="value_type">
                                 <option value="limit">limit</option>
                                 <option value="boolean">boolean</option>
                                 <option value="unlimited">unlimited</option>
-                            </select>
+                            </x-admin.form.select>
                         </label>
 
                         <label class="text-sm">
                             <span class="block font-medium text-slate-700">Value</span>
-                            <input type="number" name="value" min="0"
-                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <x-admin.form.input type="number" name="value" min="0" />
                             <span class="mt-1 block text-xs text-slate-500">Leave blank only for unlimited.</span>
                         </label>
 
                         <label class="text-sm">
                             <span class="block font-medium text-slate-700">Expires (optional)</span>
-                            <input type="datetime-local" name="expires_at"
-                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <x-admin.form.input type="datetime-local" name="expires_at" />
                         </label>
 
                         <label class="text-sm sm:col-span-2">
                             <span class="block font-medium text-slate-700">Reason</span>
-                            <input type="text" name="reason" required minlength="5" maxlength="500"
-                                   placeholder="Why this agency gets a different limit"
-                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <x-admin.form.input type="text" name="reason" required minlength="5" maxlength="500"
+                                   placeholder="Why this agency gets a different limit" />
                         </label>
 
                         <div class="sm:col-span-2">
-                            <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white">
+                            <x-admin.button>
                                 Save override
-                            </button>
+                            </x-admin.button>
                         </div>
                     </form>
                 @endcan
@@ -218,18 +214,16 @@
                         @csrf
                         <label class="block text-sm">
                             <span class="font-medium text-slate-700">Adjustment</span>
-                            <input type="number" name="delta" required
-                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <x-admin.form.input type="number" name="delta" required />
                             <span class="mt-1 block text-xs text-slate-500">Negative removes credits.</span>
                         </label>
                         <label class="block text-sm">
                             <span class="font-medium text-slate-700">Reason</span>
-                            <input type="text" name="reason" required minlength="5"
-                                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <x-admin.form.input type="text" name="reason" required minlength="5" />
                         </label>
-                        <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white">
+                        <x-admin.button class="w-full">
                             Apply adjustment
-                        </button>
+                        </x-admin.button>
                     </form>
                 @endcan
 

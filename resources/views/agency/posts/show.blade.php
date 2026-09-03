@@ -161,13 +161,12 @@
                         </div>
                         <div>
                             <label for="comment" class="block text-sm font-medium">Comment</label>
-                            <textarea id="comment" name="comment" rows="3"
-                                      class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"></textarea>
+                            <x-agency.form.textarea id="comment" name="comment" rows="3"></x-agency.form.textarea>
                         </div>
-                        <button type="submit"
-                                class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                        <x-agency.button
+                                class="w-full">
                             Update status
-                        </button>
+                        </x-agency.button>
                     </form>
                 </div>
             @endif

@@ -7,27 +7,23 @@
 
         <div>
             <label for="name" class="block text-sm font-medium">Brand name</label>
-            <input id="name" name="name" value="{{ old('name') }}" required autofocus
-                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <x-agency.form.input id="name" name="name" value="{{ old('name') }}" required autofocus />
         </div>
 
         <div>
             <label for="industry" class="block text-sm font-medium">Industry</label>
-            <input id="industry" name="industry" value="{{ old('industry') }}"
-                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <x-agency.form.input id="industry" name="industry" value="{{ old('industry') }}" />
         </div>
 
         <div>
             <label for="website" class="block text-sm font-medium">Website</label>
-            <input id="website" name="website" type="url" value="{{ old('website') }}"
-                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <x-agency.form.input id="website" name="website" type="url" value="{{ old('website') }}" />
         </div>
 
         <div>
             <label for="timezone" class="block text-sm font-medium">Timezone</label>
-            <input id="timezone" name="timezone" value="{{ old('timezone') }}"
-                   placeholder="Inherits the agency timezone"
-                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <x-agency.form.input id="timezone" name="timezone" value="{{ old('timezone') }}"
+                   placeholder="Inherits the agency timezone" />
             {{-- Scheduling reads this, so it is worth saying why it matters. --}}
             <p class="mt-1 text-xs text-slate-600">
                 Posts are scheduled in this timezone. Leave blank to use the agency's.
@@ -36,15 +32,13 @@
 
         <div>
             <label for="contact_email" class="block text-sm font-medium">Client contact email</label>
-            <input id="contact_email" name="contact_email" type="email" value="{{ old('contact_email') }}"
-                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+            <x-agency.form.input id="contact_email" name="contact_email" type="email" value="{{ old('contact_email') }}" />
         </div>
 
         <div class="flex items-center gap-3 pt-2">
-            <button type="submit"
-                    class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            <x-agency.button>
                 Create brand
-            </button>
+            </x-agency.button>
             <a href="{{ route('agency.brands.index') }}" class="text-sm text-slate-600 hover:underline">Cancel</a>
         </div>
     </form>

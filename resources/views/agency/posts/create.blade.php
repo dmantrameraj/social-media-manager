@@ -13,27 +13,24 @@
 
             <div>
                 <label for="customer_id" class="block text-sm font-medium">Brand</label>
-                <select id="customer_id" name="customer_id" required
-                        class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <x-agency.form.select id="customer_id" name="customer_id" required>
                     @foreach ($brands as $brand)
                         <option value="{{ $brand->getKey() }}" @selected(old('customer_id') == $brand->getKey())>
                             {{ $brand->name }}
                         </option>
                     @endforeach
-                </select>
+                </x-agency.form.select>
             </div>
 
             <div>
                 <label for="title" class="block text-sm font-medium">Internal title</label>
-                <input id="title" name="title" value="{{ old('title') }}"
-                       class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <x-agency.form.input id="title" name="title" value="{{ old('title') }}" />
                 <p class="mt-1 text-xs text-slate-600">Only your team sees this.</p>
             </div>
 
             <div>
                 <label for="body" class="block text-sm font-medium">Content</label>
-                <textarea id="body" name="body" rows="6" required
-                          class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('body') }}</textarea>
+                <x-agency.form.textarea id="body" name="body" rows="6" required>{{ old('body') }}</x-agency.form.textarea>
             </div>
 
             <fieldset>
@@ -126,10 +123,9 @@
             </div>
 
             <div class="flex items-center gap-3 pt-2">
-                <button type="submit"
-                        class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                <x-agency.button>
                     Save draft
-                </button>
+                </x-agency.button>
                 <a href="{{ route('agency.posts.index') }}" class="text-sm text-slate-600 hover:underline">Cancel</a>
             </div>
         </form>

@@ -13,21 +13,21 @@
 
             <label class="block text-sm">
                 <span class="font-medium">Agency name</span>
-                <input type="text" name="name" required maxlength="160"
+                <x-agency.form.input type="text" name="name" required maxlength="160"
                        value="{{ old('name', $tenant->name) }}"
-                       class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50">
+                       class="disabled:bg-slate-50" />
             </label>
 
             <label class="block text-sm">
                 <span class="font-medium">Timezone</span>
-                <select name="timezone"
-                        class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50">
+                <x-agency.form.select name="timezone"
+                        class="disabled:bg-slate-50">
                     @foreach ($timezones as $timezone)
                         <option value="{{ $timezone }}" @selected(old('timezone', $tenant->timezone) === $timezone)>
                             {{ $timezone }}
                         </option>
                     @endforeach
-                </select>
+                </x-agency.form.select>
 
                 {{--
                  | Said plainly, because somebody changing this will otherwise
@@ -44,10 +44,9 @@
         </fieldset>
 
         @if ($canUpdate)
-            <button type="submit"
-                    class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            <x-agency.button>
                 Save settings
-            </button>
+            </x-agency.button>
         @endif
     </form>
 

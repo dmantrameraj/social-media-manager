@@ -200,7 +200,9 @@ the whole transaction back.
 - [x] `InviteTeamMemberService` / `AcceptInvitationService` — token hashed with SHA-256 and
       never stored raw, single-use via an atomic claim, bound to the invited address
 - [x] `InvitePortalUserService` — brand-scoped client logins with per-brand roles
-- [ ] Tenant settings and timezone management — no route exists
+- [x] Tenant settings and timezone management — `/app/settings` (`6604597`). Locale is
+      deliberately absent: `tenants.locale` is read by nothing, and a control that
+      changes no observable behaviour is worse than none
 - [x] Member roles and deactivation *(Step 16)*
 - [x] Tests: 10 brand creation, 6 lifecycle, 13 invitation, 8 portal user
 
@@ -273,9 +275,11 @@ fix could violate it, so the query now orders by most recent.
       fabricating amounts would put invented figures where checkout reads them
 - [x] `EntitlementResolver` with override → plan → default and explicit cache invalidation
 - [x] `guard()` enforcement in services, throwing `EntitlementExceeded` that names the limit
-- [ ] `EntitlementExceeded` **rendered** with an upgrade CTA — there is no exception
-      renderer; each controller catches it and flashes the message. Adequate, not what
-      this line promised
+- [x] `EntitlementExceeded` **rendered** with an upgrade CTA (`52a0537`) — the exception
+      defines render(), so an uncaught one is a message rather than a 500, and the flash
+      partial offers the billing link gated on `billing.view`. At the mixed catch sites
+      the prompt appears only for a real entitlement failure: a rejected upload is not
+      fixed by a bigger plan
 - [x] Subscription model and lifecycle service
 - [x] `ManualGateway` implementing `PaymentGatewayInterface`
 - [x] `billing:process-lifecycle` hourly command (trial → grace → suspended), idempotent
@@ -363,8 +367,17 @@ above, which was written when that half of the work landed early.)*
       item to consult one for. This line stayed on the list as if it were outstanding
       work; it never was
 - [x] Shared partials: empty state, flash, tenant banner
-- [ ] A component library (form, table, modal, loading, error) — partials cover today's
-      screens; this was scoped larger than what was built
+- [x] Form components — **per surface, not one library.** `01-ARCHITECTURE.md` §5 forbids
+      a shared component namespace so a mis-scoped include cannot carry a screen between
+      surfaces, and one `components/` directory spanning all three would be the on-ramp
+      to exactly that. Agency (33 call sites) and admin (17) each own theirs; the portal
+      has 2 and gets none, because two is not duplication.
+      `tests/Feature/Access/SurfaceIsolationTest.php` now enforces the rule that was
+      previously only prose.
+- [ ] Table, modal and loading components — **not built, and not currently justified.**
+      No table markup repeats, there are no modals, and nothing loads asynchronously
+      enough to need a spinner. The original scope was written before the screens were;
+      build these when a second call site exists, not before
 - [x] Responsive shell; accessible focus and keyboard handling
 - [x] Security headers middleware; CSP in report-only mode — `X-Content-Type-Options`,
       `X-Frame-Options: DENY`, `Referrer-Policy`, minimal `Permissions-Policy`, and CSP

@@ -74,10 +74,10 @@
             </table>
         </div>
 
-        <button type="submit"
-                class="mt-6 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+        <x-agency.button
+                class="mt-6">
             Save settings
-        </button>
+        </x-agency.button>
 
         <p class="mt-3 text-xs text-slate-500">
             Client-facing messages are not listed here. Those go to the people you have invited

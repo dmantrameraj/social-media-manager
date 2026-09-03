@@ -12,41 +12,40 @@
                 <fieldset @cannot('update', $brand) disabled @endcannot class="space-y-4">
                     <div>
                         <label for="name" class="block text-sm font-medium">Brand name</label>
-                        <input id="name" name="name" value="{{ old('name', $brand->name) }}" required
-                               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50">
+                        <x-agency.form.input id="name" name="name" value="{{ old('name', $brand->name) }}" required
+                               class="disabled:bg-slate-50" />
                     </div>
 
                     <div>
                         <label for="industry" class="block text-sm font-medium">Industry</label>
-                        <input id="industry" name="industry" value="{{ old('industry', $brand->industry) }}"
-                               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50">
+                        <x-agency.form.input id="industry" name="industry" value="{{ old('industry', $brand->industry) }}"
+                               class="disabled:bg-slate-50" />
                     </div>
 
                     <div>
                         <label for="website" class="block text-sm font-medium">Website</label>
-                        <input id="website" name="website" type="url" value="{{ old('website', $brand->website) }}"
-                               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50">
+                        <x-agency.form.input id="website" name="website" type="url" value="{{ old('website', $brand->website) }}"
+                               class="disabled:bg-slate-50" />
                     </div>
 
                     <div>
                         <label for="timezone" class="block text-sm font-medium">Timezone</label>
-                        <input id="timezone" name="timezone" value="{{ old('timezone', $brand->timezone) }}"
-                               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50">
+                        <x-agency.form.input id="timezone" name="timezone" value="{{ old('timezone', $brand->timezone) }}"
+                               class="disabled:bg-slate-50" />
                     </div>
 
                     <div>
                         <label for="contact_email" class="block text-sm font-medium">Client contact email</label>
-                        <input id="contact_email" name="contact_email" type="email"
+                        <x-agency.form.input id="contact_email" name="contact_email" type="email"
                                value="{{ old('contact_email', $brand->contact_email) }}"
-                               class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-50">
+                               class="disabled:bg-slate-50" />
                     </div>
                 </fieldset>
 
                 @can('update', $brand)
-                    <button type="submit"
-                            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                    <x-agency.button>
                         Save changes
-                    </button>
+                    </x-agency.button>
                 @endcan
             </form>
         </div>

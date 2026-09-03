@@ -13,7 +13,7 @@
                     @endforeach
                 </select>
             </label>
-            <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white">Filter</button>
+            <x-admin.button>Filter</x-admin.button>
         </form>
 
         <p class="text-sm text-slate-600">{{ number_format($pending) }} jobs pending</p>

@@ -128,8 +128,7 @@
             @csrf
             <div class="min-w-56 flex-1">
                 <label for="email" class="block text-sm font-medium">Email</label>
-                <input id="email" name="email" type="email" required value="{{ old('email') }}"
-                       class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                <x-agency.form.input id="email" name="email" type="email" required value="{{ old('email') }}" />
             </div>
             <div>
                 <label for="role" class="block text-sm font-medium">Role</label>
@@ -140,10 +139,9 @@
                     @endforeach
                 </select>
             </div>
-            <button type="submit"
-                    class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            <x-agency.button>
                 Send invitation
-            </button>
+            </x-agency.button>
         </form>
     @endif
 @endsection

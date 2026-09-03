@@ -55,10 +55,9 @@
                                class="mt-1 w-56 rounded-lg border border-slate-300 px-3 py-2 text-sm">
                     </div>
 
-                    <button type="submit"
-                            class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+                    <x-agency.button>
                         Add file
-                    </button>
+                    </x-agency.button>
                 </form>
             @endif
         </div>

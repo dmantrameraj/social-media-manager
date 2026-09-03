@@ -63,10 +63,9 @@
         <form method="POST" action="{{ route('agency.sessions.destroy-others') }}" class="mt-6">
             @csrf
             @method('DELETE')
-            <button type="submit"
-                    class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+            <x-agency.button>
                 Sign out every other device
-            </button>
+            </x-agency.button>
         </form>
     @endif
 

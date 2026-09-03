@@ -45,25 +45,23 @@
 
             <label class="block text-sm">
                 <span class="font-medium">What does this client do?</span>
-                <textarea name="business_description" rows="4" maxlength="5000"
-                          class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                          placeholder="A speciality coffee roaster in Leeds selling to cafés and at home.">{{ old('business_description', $brain->business_description) }}</textarea>
+                <x-agency.form.textarea name="business_description" rows="4" maxlength="5000"
+                         
+                          placeholder="A speciality coffee roaster in Leeds selling to cafés and at home.">{{ old('business_description', $brain->business_description) }}</x-agency.form.textarea>
             </label>
 
             <div class="grid gap-4 sm:grid-cols-2">
                 <label class="block text-sm">
                     <span class="font-medium">Industry</span>
-                    <input type="text" name="industry" maxlength="120"
-                           value="{{ old('industry', $brain->industry) }}"
-                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <x-agency.form.input type="text" name="industry" maxlength="120"
+                           value="{{ old('industry', $brain->industry) }}" />
                 </label>
 
                 <label class="block text-sm">
                     <span class="font-medium">Website</span>
-                    <input type="url" name="website" maxlength="255"
+                    <x-agency.form.input type="url" name="website" maxlength="255"
                            value="{{ old('website', $brain->website) }}"
-                           placeholder="https://example.com"
-                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                           placeholder="https://example.com" />
                 </label>
             </div>
         </section>
@@ -74,24 +72,21 @@
             <div class="grid gap-4 sm:grid-cols-2">
                 <label class="block text-sm">
                     <span class="font-medium">Tone</span>
-                    <input type="text" name="brand_tone" maxlength="190"
+                    <x-agency.form.input type="text" name="brand_tone" maxlength="190"
                            value="{{ old('brand_tone', $brain->brand_tone) }}"
-                           placeholder="Warm, plain-spoken, never salesy"
-                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                           placeholder="Warm, plain-spoken, never salesy" />
                 </label>
 
                 <label class="block text-sm">
                     <span class="font-medium">Primary language</span>
-                    <input type="text" name="primary_language" maxlength="10"
-                           value="{{ old('primary_language', $brain->primary_language ?: 'en') }}"
-                           class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <x-agency.form.input type="text" name="primary_language" maxlength="10"
+                           value="{{ old('primary_language', $brain->primary_language ?: 'en') }}" />
                 </label>
             </div>
 
             <label class="block text-sm">
                 <span class="font-medium">Anything else about how they sound</span>
-                <textarea name="brand_voice_notes" rows="3" maxlength="5000"
-                          class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">{{ old('brand_voice_notes', $brain->brand_voice_notes) }}</textarea>
+                <x-agency.form.textarea name="brand_voice_notes" rows="3" maxlength="5000">{{ old('brand_voice_notes', $brain->brand_voice_notes) }}</x-agency.form.textarea>
             </label>
         </section>
 
@@ -128,18 +123,17 @@
                                 Generated text containing these is rejected, not just discouraged.
                             </span>
                         @endif
-                        <textarea name="{{ $field }}" rows="4" maxlength="4000"
+                        <x-agency.form.textarea name="{{ $field }}" rows="4" maxlength="4000"
                                   placeholder="{{ $placeholder }}"
-                                  class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-mono">{{ old($field, implode("\n", (array) ($brain->{$field} ?? []))) }}</textarea>
+                                  class="font-mono">{{ old($field, implode("\n", (array) ($brain->{$field} ?? []))) }}</x-agency.form.textarea>
                     </label>
                 @endforeach
             </div>
         </section>
 
-        <button type="submit"
-                class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+        <x-agency.button>
             Save brand brain
-        </button>
+        </x-agency.button>
     </form>
 
 @endsection
