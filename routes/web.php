@@ -113,6 +113,21 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
 
     Route::get('team', [TeamController::class, 'index'])->name('team.index');
     Route::post('team/invite', [TeamController::class, 'invite'])->name('team.invite');
+
+    /*
+     | Until these existed an agency could invite people and never remove them:
+     | MembershipStatus::Suspended was defined and enforced, and nothing could
+     | set it. Suspension lands on the member's next request, because
+     | ResolveTenant re-reads the membership every time.
+     */
+    Route::post('team/{member}/suspend', [TeamController::class, 'suspend'])
+        ->name('team.suspend');
+    Route::post('team/{member}/reinstate', [TeamController::class, 'reinstate'])
+        ->name('team.reinstate');
+    Route::put('team/{member}/role', [TeamController::class, 'updateRole'])
+        ->name('team.role');
+    Route::post('team/invitations/{invitation}/revoke', [TeamController::class, 'revokeInvitation'])
+        ->name('team.invitation.revoke');
 });
 
 /*
