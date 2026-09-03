@@ -55,7 +55,11 @@ genuinely outstanding. The duplicate is gone and the later steps now reflect wha
 - [x] `config/social.php`, `publishing.php`, `ai.php`
 - [x] `QUEUE_CONNECTION=database`, `CACHE_STORE=database`, `SESSION_DRIVER=database`
 - [x] Pint passing; Larastan configured at level 5 and **passing with 0 errors**
-- [ ] CI: install, Pint, Larastan, Pest, `composer audit`
+- [x] CI: install, Pint, Larastan, Pest, `composer audit` —
+      `.github/workflows/ci.yml`. Ordered cheapest-first so a formatting slip does not
+      cost a full test run before it reports. **Never executed on a runner** — the
+      repository has no remote yet, so the MariaDB image tag and action versions are
+      unverified until the first push
 - [x] Tailwind — ships with the Laravel 13 skeleton
 
 ## Step 2 — Migrations ✅ *(complete — 18 migrations, 45 tables)*
@@ -380,8 +384,10 @@ above, which was written when that half of the work landed early.)*
 - [x] `migrate:fresh --seed` produces a working demo tenant — run end to end:
       61 permissions, 4 plans, 36 features, an agency with a brand and a Starter
       subscription, entitlements resolving from the plan rather than defaults
-- [ ] Manual smoke test of the full Definition-of-Done path — partially done in-browser for
-      auth, agency, admin and portal; not recorded as a repeatable script
+- [x] The full Definition-of-Done path, as a repeatable test —
+      `tests/Feature/DefinitionOfDoneTest.php`. Every segment was already covered;
+      nothing walked the whole path, so nothing proved the seams between them line up.
+      Starts from a signup and only ever uses state the previous step produced
 - [x] `/docs` updated where implementation diverged from Phase 0 design
 - [x] `PHASE-1-COMPLETION.md` written
 
@@ -438,12 +444,15 @@ Every self-contained gap that blocks the exit gate is closed. What remains there
 live provider documentation, which is not something to guess at — see §64 of the master
 prompt.
 
-Smaller, and honestly optional for the gate: CI wiring (commands are verified locally,
-not run by a runner), tenant settings and timezone management (no route exists),
-`EntitlementExceeded` rendered with an upgrade CTA (each controller currently catches it
-and flashes the message — adequate, not what Step 8 originally promised), the form/table/
-modal component library (partials cover today's screens; this was scoped larger than what
-got built), and a repeatable smoke script.
+Smaller, and honestly optional for the gate: tenant settings and timezone management (no
+route exists), `EntitlementExceeded` rendered with an upgrade CTA (each controller
+currently catches it and flashes the message — adequate, not what Step 8 originally
+promised), and the form/table/modal component library (partials cover today's screens;
+this was scoped larger than what got built).
+
+CI is now wired but **has never run on a runner** — there is no git remote. The workflow
+is a GitHub Actions assumption; its MariaDB image tag and action versions want confirming
+on the first push.
 
 ---
 

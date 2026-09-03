@@ -1,0 +1,122 @@
+name: CI
+
+# Phase 1 asked for: install, Pint, Larastan, Pest, composer audit.
+#
+# Ordered cheapest-first on purpose. The suite is ~13 minutes locally and the
+# static checks are seconds, so a formatting slip should not cost a full test
+# run before it is reported.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # A newer push makes an in-flight run for the same branch irrelevant.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Static analysis and tests
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        # Must stay at or above 10.6: the publishing engine claims work with
+        # SELECT ... FOR UPDATE SKIP LOCKED, which does not exist below it.
+        # See docs/11-DEPLOYMENT.md. Development runs 12.3; 11.4 is the LTS
+        # line and is what this pins to.
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          # phpunit.xml names this database. Created here so the connection in
+          # config/database.php resolves without the suite having to create it.
+          MARIADB_DATABASE: smm_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      # Set as real environment variables rather than written into .env:
+      # Laravel loads .env immutably, so anything already in the environment
+      # wins. DB_DATABASE is deliberately NOT set here -- phpunit.xml supplies
+      # smm_test, and overriding it here would silently point the suite
+      # somewhere else.
+      DB_CONNECTION: mariadb
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: root
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          # gd is not optional: the media variant job re-encodes every upload
+          # through it. exif, intl and zip are the Step 0 prerequisites.
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_mysql, gd, zip, curl, exif, fileinfo, sodium, bcmath
+          coverage: none
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php8.4-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php8.4-
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare the environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Cheapest checks first.
+      - name: Pint
+        run: ./vendor/bin/pint --test
+
+      - name: Larastan
+        run: ./vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
+      - name: Composer audit
+        run: composer audit
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      # Required before the suite, not merely nice to have: /public/build is
+      # gitignored, and every test that renders a layout goes through @vite.
+      # Without a manifest they fail on a missing asset rather than on
+      # anything they were written to check.
+      - name: Build assets
+        run: npm run build
+
+      # Not required -- RefreshDatabase migrates the suite's own database --
+      # but a broken migration reported here is one clear error instead of
+      # 650 tests erroring for a reason none of them are about.
+      #
+      # DB_DATABASE is set only for this step: outside PHPUnit the value comes
+      # from .env.example, which names the development database and does not
+      # exist on the runner.
+      - name: Check migrations run clean
+        run: php artisan migrate --force
+        env:
+          DB_DATABASE: smm_test
+
+      - name: Pest
+        run: ./vendor/bin/pest
