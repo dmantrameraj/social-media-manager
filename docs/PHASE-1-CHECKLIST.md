@@ -347,17 +347,26 @@ above, which was written when that half of the work landed early.)*
 - [x] **No admin screen exposes agency credentials or tokens** — asserted by test
 - [x] Tests: non-admins get 403 on every `/admin` route; impersonation restrictions hold
 
-## Step 13 — Foundation UI *(complete apart from security headers)*
+## Step 13 — Foundation UI ✅ *(complete)*
 
 - [x] Four layouts: agency, portal, admin, auth — separate, no shared component namespace
 - [x] `BrandingResolver`; no platform name, logo or colour hardcoded in Blade
 - [x] Navigation gated by permission
-- [ ] Navigation gated by **feature flag** — the flag tables exist; no view consults them
+- [x] ~~Navigation gated by feature flag~~ — **not a gap.** `docs/00-PROJECT-OVERVIEW.md`
+      §3 lists `feature_flags` / `feature_flag_tenant` explicitly as a **schema stub**
+      for Phase 8 (white-label, reseller), with its own warning: "Schema stub ≠
+      feature." Nothing in V1's scope is meant to be flag-gated, so there is no nav
+      item to consult one for. This line stayed on the list as if it were outstanding
+      work; it never was
 - [x] Shared partials: empty state, flash, tenant banner
 - [ ] A component library (form, table, modal, loading, error) — partials cover today's
       screens; this was scoped larger than what was built
 - [x] Responsive shell; accessible focus and keyboard handling
-- [ ] Security headers middleware; CSP in report-only mode — **not built**
+- [x] Security headers middleware; CSP in report-only mode — `X-Content-Type-Options`,
+      `X-Frame-Options: DENY`, `Referrer-Policy`, minimal `Permissions-Policy`, and CSP
+      as `Content-Security-Policy-Report-Only` by default. HSTS ships **disabled**,
+      gated behind `SECURITY_HSTS`, per §7's own caution to enable it "once the
+      certificate is stable" — not something a middleware should default to on
 - [x] Route-coverage test: every agency route authorises in its handler, or is listed as
       self-scoped and proven to scope through the authenticated user
 
@@ -407,8 +416,8 @@ existed because a shipped feature could not be reached without it.
 - [x] Revoke grants → delete media bytes and variants → anonymise → record
 - [x] Users shared with another agency are exempt from anonymisation
 - [x] `purged_at` records that it happened; the audit entry carries counts only
-- [ ] **Warning emails at 30 and 7 days** — specified in `10-SECURITY.md` §9 and not built.
-      The purge currently runs with no advance notice
+- [x] **Warning emails at 30 and 7 days** — `platform:warn-pending-purge` (`3c80d85`).
+      This line was left unticked here after that commit; fixed now
 - [x] Docs: `PHASE-1-STEP-17-DATA-PURGE.md`
 
 ---
@@ -425,11 +434,16 @@ One item, and it is not ours to close:
    `billing:reconcile-subscriptions` — **blocked** pending verification against live
    Razorpay documentation
 
-Every self-contained gap in Phase 1 is closed. What remains needs live provider
-documentation, which is not something to guess at — see §64 of the master prompt.
+Every self-contained gap that blocks the exit gate is closed. What remains there needs
+live provider documentation, which is not something to guess at — see §64 of the master
+prompt.
 
-Smaller, and honestly optional for the gate: security-headers middleware, feature-flag
-navigation gating, and a repeatable smoke script.
+Smaller, and honestly optional for the gate: CI wiring (commands are verified locally,
+not run by a runner), tenant settings and timezone management (no route exists),
+`EntitlementExceeded` rendered with an upgrade CTA (each controller currently catches it
+and flashes the message — adequate, not what Step 8 originally promised), the form/table/
+modal component library (partials cover today's screens; this was scoped larger than what
+got built), and a repeatable smoke script.
 
 ---
 

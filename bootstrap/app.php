@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\EnsureTenantActive;
 use App\Http\Middleware\HandleImpersonation;
 use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -86,6 +87,10 @@ return Application::configure(basePath: dirname(__DIR__))
          */
         $middleware->web(append: [
             HandleImpersonation::class,
+            // docs/10-SECURITY.md §7. Response-only, so it belongs after
+            // everything above rather than needing a particular position in
+            // the request-side ordering the way ResolveTenant does.
+            SecurityHeaders::class,
         ]);
 
         /*
