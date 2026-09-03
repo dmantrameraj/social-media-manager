@@ -35,12 +35,14 @@ use Illuminate\Support\Carbon;
  * @property TenantStatus $status
  * @property ?int $parent_tenant_id
  * @property ?int $owner_user_id
+ * @property-read ?User $owner
  * @property ?array<string, mixed> $settings
  * @property ?Carbon $trial_ends_at
  * @property ?Carbon $suspended_at
  * @property ?Carbon $cancelled_at
  * @property ?Carbon $purge_after
  * @property ?Carbon $purged_at
+ * @property ?array<int, string> $purge_warnings_sent Stage days => when it was sent
  */
 #[UseFactory(TenantFactory::class)]
 class Tenant extends Model
@@ -73,6 +75,7 @@ class Tenant extends Model
         'cancelled_at',
         'purge_after',
         'purged_at',
+        'purge_warnings_sent',
     ];
 
     protected function casts(): array
@@ -86,6 +89,7 @@ class Tenant extends Model
             'cancelled_at' => 'datetime',
             'purge_after' => 'datetime',
             'purged_at' => 'datetime',
+            'purge_warnings_sent' => 'array',
         ];
     }
 

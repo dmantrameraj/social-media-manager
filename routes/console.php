@@ -80,6 +80,15 @@ Schedule::command('ai:purge-snapshots')->dailyAt('03:40');
  | does, and its output should land where schedule:run's own logging captures
  | it rather than in a detached process nobody reads.
  */
+/*
+ | Before the purge, not inside it: by the time a tenant is due, warning them
+ | is pointless. config('tenancy.purge_warning_days') has held [30, 7] since
+ | Phase 0 and nothing read it until this shipped.
+ */
+Schedule::command('platform:warn-pending-purge')
+    ->dailyAt('04:00')
+    ->withoutOverlapping(30);
+
 Schedule::command('platform:purge-expired-data')
     ->dailyAt('04:10')
     ->withoutOverlapping(60);

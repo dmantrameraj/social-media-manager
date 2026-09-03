@@ -126,14 +126,43 @@ untouched.
 
 ## 9. Not done — and one of these matters
 
-- **Warning emails at 30 and 7 days.** §9 specifies them and they are not
-  built. This is the significant omission: the purge now runs on schedule with
-  no advance notice to the agency. The clock only starts at cancellation, so
-  nobody loses data they did not choose to stop paying for — but a warning is
-  the difference between a policy and a surprise, and it should land before this
-  ever runs against real customers.
+- ~~Warning emails at 30 and 7 days.~~ **Built** — see §10 below.
 - **Financial record retention** is inherited rather than implemented:
   subscriptions, payments and invoices are simply not touched by the purge. That
   is the correct outcome, but it is not asserted anywhere.
 - **Provider `revoke()` implementations** do not exist beyond the fake. Every
   real grant will currently take the `INTEGRATION TODO` path.
+
+## 10. Warnings
+
+`platform:warn-pending-purge`, daily at 04:00, ten minutes before the purge
+itself. Separate from it on purpose: by the time a tenant is *due*, warning them
+is pointless — this command deals only with deadlines that have not yet arrived.
+
+`config('tenancy.purge_warning_days')` has held `[30, 7]` since Phase 0 and
+nothing read it until now.
+
+**One message, quoting the real days remaining — not the stage that fired it.**
+If the job does not run for a month a tenant crosses both 30 and 7 between two
+runs; sending both would put two contradictory deadlines in one inbox on one
+morning, and the 30-day one would state a date already past. Every crossed stage
+is recorded, including skipped ones, so a late run never produces a staler
+warning afterwards.
+
+**Deliberately outside `NotificationPreferences`.** Every other notification in
+this application can be switched off and this one must not be: an unsubscribe
+made months earlier for post updates must not silently suppress "your data is
+deleted in seven days".
+
+Mail *and* database. The in-app copy is not redundant — a cancelled agency's
+billing contact may have left, and whoever logs in to reactivate should see it
+without needing the original email.
+
+A tenant with **no owner** is logged rather than skipped silently, and the stage
+is *not* marked sent, so a restored owner still receives their warning.
+
+The mail names what goes — "every brand, post, scheduled item, uploaded image and
+client login" — rather than "your data", which is easy to skim past, and offers
+both the reactivation link and an export request.
+
+Covered by `tests/Feature/Tenancy/PurgeWarningTest.php`.
