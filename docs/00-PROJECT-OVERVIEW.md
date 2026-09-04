@@ -1,8 +1,12 @@
 # 00 — Project Overview
 
 **Product:** AI-powered multi-tenant Social Media Management SaaS
-**Status:** Phase 0 (architecture & documentation) — no application code exists yet
-**Last updated:** 2026-09-01
+**Status:** Phases 1–7 built and tested; Phase 8 partial. See [12-ROADMAP.md](12-ROADMAP.md)
+for per-phase status and [PHASE-5-8-PROGRESS.md](PHASE-5-8-PROGRESS.md) for the latest work.
+**Not shippable yet:** no real provider adapter is registered in production (only a fake,
+non-production driver), and Razorpay checkout, webhooks and invoicing do not exist. Both are
+blocked on live external documentation, not on further design.
+**Last updated:** 2026-09-05
 
 ---
 

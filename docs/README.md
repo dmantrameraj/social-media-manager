@@ -2,7 +2,17 @@
 
 Multi-Tenant AI Social Media Management SaaS
 
-**Current phase:** Phase 0 complete, awaiting review. No application code exists yet.
+**Current state:** Phases 1–7 are built and tested; Phase 8 is partial (white-label and
+custom portal domains done, reseller and Social CRM not started). Two things stand between
+this and a product an agency could pay for, and neither is a design problem:
+
+- **No real social provider is registered in production.** The registry, OAuth flow,
+  publishing engine and analytics collector all work against a fake driver that is refused
+  outside local and test environments. Nothing can publish to a live network.
+- **Razorpay is a foundation only** — no checkout initiation, no webhook processing, no
+  invoices.
+
+Both are blocked on live provider documentation, per the rule below about `[VERIFY]` markers.
 
 ## Read in this order
 
@@ -22,6 +32,18 @@ Multi-Tenant AI Social Media Management SaaS
 | 11 | [Deployment](11-DEPLOYMENT.md) | Before first deploy; environment prerequisites |
 | 12 | [Roadmap](12-ROADMAP.md) | Phase planning |
 | — | [Phase 1 Checklist](PHASE-1-CHECKLIST.md) | Phase 1 execution |
+
+## What actually got built
+
+| Document | Covers |
+|---|---|
+| [Phase 1 Completion](PHASE-1-COMPLETION.md) | Foundation: tenancy, auth, RBAC, media, audit, entitlements |
+| [Phases 2 & 3 Progress](PHASE-2-3-PROGRESS.md) | Social connection and publishing foundations |
+| [Phase 4 Progress](PHASE-4-PROGRESS.md) | AI features, Brand Brain, credit ledger, autopilot |
+| [Phases 5–8 Progress](PHASE-5-8-PROGRESS.md) | Analytics, collaboration, inbox, white-label, domains |
+
+The `PHASE-1-STEP-*.md` files record individual steps of Phase 1 and are mostly of
+historical interest.
 
 ## The rules that do not bend
 

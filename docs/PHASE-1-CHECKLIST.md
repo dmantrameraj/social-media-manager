@@ -57,9 +57,10 @@ genuinely outstanding. The duplicate is gone and the later steps now reflect wha
 - [x] Pint passing; Larastan configured at level 5 and **passing with 0 errors**
 - [x] CI: install, Pint, Larastan, Pest, `composer audit` —
       `.github/workflows/ci.yml`. Ordered cheapest-first so a formatting slip does not
-      cost a full test run before it reports. **Never executed on a runner** — the
-      repository has no remote yet, so the MariaDB image tag and action versions are
-      unverified until the first push
+      cost a full test run before it reports. Pushed to
+      `github.com/dmantrameraj/social-media-manager` since 2026-09-04, so runs exist — but
+      **no run has been read**: `gh` is not authenticated here and the repository is
+      private, so the MariaDB image tag and action versions remain unconfirmed
 - [x] Tailwind — ships with the Laravel 13 skeleton
 
 ## Step 2 — Migrations ✅ *(complete — 18 migrations, 45 tables)*
@@ -481,9 +482,11 @@ is stale: `agency.settings.edit` and `agency.settings.update` both exist and
 checklist that under-claims teaches people to stop trusting it just as fast as one that
 over-claims.
 
-CI is now wired but **has never run on a runner** — there is no git remote. The workflow
-is a GitHub Actions assumption; its MariaDB image tag and action versions want confirming
-on the first push.
+CI is wired and the repository now has a remote, so runs are firing on every push. **No
+result has been read from one.** `gh` is not authenticated on this machine and the
+repository is private, so the workflow is still an assumption in the one respect that
+matters: whether its MariaDB service image and action versions actually resolve. First
+thing to check after `gh auth login`.
 
 ---
 
