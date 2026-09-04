@@ -11,11 +11,11 @@ use App\Domain\Tenancy\Services\ProvisionTenantService;
 /*
  | Per-agency white labelling.
  |
- | BrandingResolver has said "tenant overrides are read from branding_settings
- | once that feature ships" since Phase 1, and every template already went
- | through it -- but the table never existed, so a client of Bright Digital
- | logging in to approve their posts saw the SaaS vendor's name rather than the
- | agency they actually hired.
+ | branding_settings shipped in Phase 1 as a documented schema stub and every
+ | template already went through BrandingResolver -- but nothing read the
+ | overrides, and nothing could write them. A client of Bright Digital logging
+ | in to approve their posts saw the SaaS vendor's name rather than the agency
+ | they actually hired.
  */
 
 beforeEach(function (): void {
@@ -126,6 +126,78 @@ it('normalises a valid colour to lower case', function (): void {
     expect(BrandingSetting::normaliseColor('#0EA5E9'))->toBe('#0ea5e9')
         ->and(BrandingSetting::normaliseColor('not a colour'))->toBeNull()
         ->and(BrandingSetting::normaliseColor(null))->toBeNull();
+});
+
+// ------------------------------------------------------------------ editing
+
+it('saves branding an agency enters', function (): void {
+    // Reading was wired first; without this nothing could WRITE it, so an
+    // entitled agency still had no way to use the feature.
+    allowWhiteLabel();
+
+    $this->actingAs($this->owner)
+        ->from(route('agency.settings.branding'))
+        ->put(route('agency.settings.branding.update'), [
+            'app_name' => 'Bright Digital Social',
+            'primary_color' => '#0EA5E9',
+        ])
+        ->assertRedirect(route('agency.settings.branding'));
+
+    expect(app(BrandingResolver::class)->appName())->toBe('Bright Digital Social')
+        // Normalised on the way in.
+        ->and(app(BrandingResolver::class)->primaryColor())->toBe('#0ea5e9');
+});
+
+it('treats a cleared field as back to the default', function (): void {
+    // An agency emptying the field wants the platform default, not a nameless
+    // product.
+    allowWhiteLabel();
+
+    BrandingSetting::factory()->create([
+        'tenant_id' => $this->tenant->getKey(),
+        'app_name' => 'Bright Digital Social',
+    ]);
+
+    $this->actingAs($this->owner)
+        ->put(route('agency.settings.branding.update'), ['app_name' => '  ']);
+
+    expect(app(BrandingResolver::class)->appName())->toBe(config('branding.app_name'));
+});
+
+it('refuses a colour that is not hex', function (): void {
+    // Rejected at the form as well as in the resolver: these reach a style
+    // attribute, so a non-colour is a CSS injection.
+    allowWhiteLabel();
+
+    $this->actingAs($this->owner)
+        ->put(route('agency.settings.branding.update'), [
+            'primary_color' => 'red;a{}',
+        ])
+        ->assertSessionHasErrors('primary_color');
+});
+
+it('will not save branding without the entitlement', function (): void {
+    /*
+     | Checked on write as well as read. Letting an unentitled tenant save it
+     | would mean their settings take effect the moment somebody grants the
+     | flag for an unrelated reason.
+     */
+    $this->actingAs($this->owner)
+        ->put(route('agency.settings.branding.update'), [
+            'app_name' => 'Should not save',
+        ])
+        ->assertForbidden();
+
+    expect(BrandingSetting::query()->count())->toBe(0);
+});
+
+it('shows the screen even without the entitlement', function (): void {
+    // Hiding it leaves somebody who was sold the feature hunting for a setting
+    // that appears not to exist.
+    $this->actingAs($this->owner)
+        ->get(route('agency.settings.branding'))
+        ->assertOk()
+        ->assertSee('not part of your current plan');
 });
 
 it('never shows one agency branding to another', function (): void {

@@ -15,6 +15,7 @@ use App\Http\Controllers\Agency\AnalyticsController;
 use App\Http\Controllers\Agency\BillingController;
 use App\Http\Controllers\Agency\BrandBrainController;
 use App\Http\Controllers\Agency\BrandController;
+use App\Http\Controllers\Agency\BrandingController;
 use App\Http\Controllers\Agency\DashboardController;
 use App\Http\Controllers\Agency\InboxController;
 use App\Http\Controllers\Agency\MediaController;
@@ -195,6 +196,16 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
      */
     Route::get('settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
+
+    /*
+     | White labelling. branding_settings shipped in Phase 1 as a schema stub
+     | and BrandingResolver reads it, but nothing could WRITE it -- an agency
+     | entitled to the feature had no way to use it.
+     */
+    Route::get('settings/branding', [BrandingController::class, 'edit'])
+        ->name('settings.branding');
+    Route::put('settings/branding', [BrandingController::class, 'update'])
+        ->name('settings.branding.update');
 
     Route::get('team', [TeamController::class, 'index'])->name('team.index');
     Route::post('team/invite', [TeamController::class, 'invite'])->name('team.invite');

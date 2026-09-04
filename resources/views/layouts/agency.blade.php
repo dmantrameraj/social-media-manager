@@ -24,6 +24,7 @@
         // the account block below, which holds the signed-in person's own
         // preferences and gates on nothing but identity.
         ['route' => 'agency.settings.edit', 'label' => 'Settings', 'permission' => 'settings.view'],
+        ['route' => 'agency.settings.branding', 'label' => 'Branding', 'permission' => 'settings.view'],
     ])->filter(fn (array $item): bool => $item['permission'] === null
         || auth()->user()?->can($item['permission']) === true);
 
