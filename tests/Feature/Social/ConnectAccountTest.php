@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Billing\Entitlements\EntitlementResolver;
 use App\Domain\Customers\Models\Customer;
 use App\Domain\Identity\Models\User;
 use App\Domain\Publishing\Enums\PostStatus;
@@ -343,6 +344,10 @@ it('disconnects without destroying what was published', function (): void {
 
     expect($account->fresh()->status)->toBe(AccountStatus::Disconnected)
         ->and($account->fresh()->status->canPublish())->toBeFalse()
+        // "Disconnect sets status and nulls the tokens instead", per the
+        // migration. A live page token on an account nobody publishes to is
+        // just a credential waiting to leak.
+        ->and($account->fresh()->page_access_token)->toBeNull()
         ->and($target->fresh())->not->toBeNull()
         ->and($target->fresh()->external_post_id)->toBe('external-1');
 });
@@ -356,6 +361,79 @@ it('refuses to disconnect without the permission', function (): void {
         ->assertForbidden();
 
     expect($account->fresh()->status)->toBe(AccountStatus::Active);
+});
+
+// --------------------------------------------------------------- plan limits
+
+it('refuses to connect more accounts than the plan sells', function (): void {
+    /*
+     | social_accounts.max has been in config since Step 8 and was never once
+     | enforced: connecting was unreachable AND EntitlementResolver returned a
+     | hard-coded 0 for this usage. Both halves missing is why neither half
+     | looked broken.
+     */
+    givePlanLimit($this->tenant->getKey(), 'social_accounts.max', 1);
+    FakeProvider::willDiscover(twoPages());
+
+    $connection = SocialConnection::factory()->create([
+        'tenant_id' => $this->tenant->getKey(),
+        'provider_key' => 'fake',
+    ]);
+
+    $this->actingAs($this->owner)
+        ->from(route('agency.social.choose', $connection))
+        ->post(route('agency.social.store', $connection), [
+            'customer' => $this->brand->getKey(),
+            'accounts' => ['page-1', 'page-2'],
+        ])
+        ->assertRedirect(route('agency.social.choose', $connection))
+        ->assertSessionHas('error')
+        // What the flash partial reads to offer the billing link.
+        ->assertSessionHas('upgrade_prompt', true);
+
+    // All or nothing: a partial write would leave them over the limit anyway.
+    expect(SocialAccount::query()->count())->toBe(0);
+});
+
+it('does not charge a second seat for reconnecting an account', function (): void {
+    // The common path. Charging for it would make re-authorising after an
+    // expired token look like hitting the plan ceiling.
+    givePlanLimit($this->tenant->getKey(), 'social_accounts.max', 1);
+    FakeProvider::willDiscover(twoPages());
+
+    $connection = SocialConnection::factory()->create([
+        'tenant_id' => $this->tenant->getKey(),
+        'provider_key' => 'fake',
+    ]);
+
+    $payload = [
+        'customer' => $this->brand->getKey(),
+        'accounts' => ['page-1'],
+    ];
+
+    $this->actingAs($this->owner)->post(route('agency.social.store', $connection), $payload);
+    $this->actingAs($this->owner)
+        ->post(route('agency.social.store', $connection), $payload)
+        ->assertSessionMissing('upgrade_prompt');
+
+    expect(SocialAccount::query()->count())->toBe(1);
+});
+
+it('frees the seat when an account is disconnected', function (): void {
+    // countsTowardLimit() says a disconnected account is not a seat in use,
+    // and the usage counter now agrees with it.
+    givePlanLimit($this->tenant->getKey(), 'social_accounts.max', 1);
+    $account = SocialAccount::factory()->forCustomer($this->brand)->create();
+
+    expect(app(EntitlementResolver::class)
+        ->currentUsage($this->tenant, 'social_accounts.max'))->toBe(1);
+
+    $this->actingAs($this->owner)
+        ->from(route('agency.social.index'))
+        ->delete(route('agency.social.destroy', $account));
+
+    expect(app(EntitlementResolver::class)
+        ->currentUsage($this->tenant->fresh(), 'social_accounts.max'))->toBe(0);
 });
 
 // ---------------------------------------------------------------- the listing

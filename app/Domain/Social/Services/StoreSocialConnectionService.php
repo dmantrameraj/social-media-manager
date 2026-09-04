@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Social\Services;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Billing\Entitlements\EntitlementResolver;
+use App\Domain\Billing\Entitlements\Exceptions\EntitlementExceeded;
 use App\Domain\Social\DTO\DiscoveredAccount;
 use App\Domain\Social\DTO\TokenSet;
 use App\Domain\Social\Enums\AccountHealth;
@@ -14,6 +16,7 @@ use App\Domain\Social\Models\SocialAccount;
 use App\Domain\Social\Models\SocialConnection;
 use App\Domain\Social\OAuth\OAuthContext;
 use App\Domain\Tenancy\Models\Tenant;
+use App\Support\TenantContext;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -31,7 +34,11 @@ use Illuminate\Support\Str;
  */
 final class StoreSocialConnectionService
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly EntitlementResolver $entitlements,
+        private readonly TenantContext $context,
+    ) {}
 
     /**
      * Store or refresh the grant itself.
@@ -116,6 +123,8 @@ final class StoreSocialConnectionService
         int $customerId,
         array $accounts,
     ): int {
+        $this->guardSeats($connection, $accounts);
+
         $stored = 0;
 
         foreach ($accounts as $account) {
@@ -170,5 +179,56 @@ final class StoreSocialConnectionService
         }
 
         return $stored;
+    }
+
+    /**
+     * Refuse to connect more accounts than the plan sells.
+     *
+     * social_accounts.max has been in config since Step 8 and was never once
+     * enforced: EntitlementResolver returned a hard-coded 0 for this usage,
+     * because connecting was unreachable and the counter was stubbed "Phase
+     * 2". Both halves being absent is why neither looked broken.
+     *
+     * Counted here rather than in the controller, per EntitlementResolver's
+     * own instruction -- a limit checked in a controller is a limit the API
+     * and console paths skip.
+     *
+     * @param  list<DiscoveredAccount>  $accounts
+     *
+     * @throws EntitlementExceeded
+     */
+    private function guardSeats(SocialConnection $connection, array $accounts): void
+    {
+        /*
+         | Only the ones that would take a NEW seat. Reconnecting an account
+         | that is already active is the common path and must not be charged
+         | twice; a previously disconnected one is taking its seat back, so it
+         | does count.
+         */
+        $existing = SocialAccount::query()
+            ->where('provider_key', $connection->provider_key)
+            ->whereIn('external_id', array_map(
+                static fn (DiscoveredAccount $account): string => $account->externalId,
+                $accounts,
+            ))
+            ->where('status', '!=', AccountStatus::Disconnected->value)
+            ->pluck('external_id')
+            ->all();
+
+        $newSeats = 0;
+
+        foreach ($accounts as $account) {
+            if (! in_array($account->externalId, $existing, true)) {
+                $newSeats++;
+            }
+        }
+
+        if ($newSeats > 0) {
+            $this->entitlements->guard(
+                $this->context->get(),
+                'social_accounts.max',
+                $newSeats,
+            );
+        }
     }
 }

@@ -6,6 +6,7 @@ namespace App\Domain\Billing\Entitlements;
 
 use App\Domain\Billing\Entitlements\Enums\EntitlementType;
 use App\Domain\Billing\Entitlements\Exceptions\EntitlementExceeded;
+use App\Domain\Social\Enums\AccountStatus;
 use App\Domain\Tenancy\Models\Tenant;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -179,7 +180,20 @@ final class EntitlementResolver
                 ->whereNull('deleted_at')
                 ->count(),
 
-            'social_accounts' => 0,   // Phase 2
+            /*
+             | Counted for real now that accounts can be connected at all. It
+             | read 0 while connecting was unreachable, which meant the limit
+             | a plan sells was never once enforced.
+             |
+             | Disconnected rows are excluded, matching
+             | AccountStatus::countsTowardLimit(): the row is kept so published
+             | history survives, but it is not a seat anybody is using.
+             */
+            'social_accounts' => DB::table('social_accounts')
+                ->where('tenant_id', $tenant->getKey())
+                ->where('status', '!=', AccountStatus::Disconnected->value)
+                ->count(),
+
             'posts_scheduled_this_period' => 0, // Phase 3
 
             'storage_bytes' => (int) DB::table('media')

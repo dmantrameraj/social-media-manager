@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Agency;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Billing\Entitlements\Exceptions\EntitlementExceeded;
 use App\Domain\Customers\Models\Customer;
 use App\Domain\Social\DTO\DiscoveredAccount;
 use App\Domain\Social\Enums\AccountStatus;
@@ -140,7 +141,15 @@ final class SocialAccountController extends Controller
             return back()->with('error', 'Those accounts are no longer available on this connection.');
         }
 
-        $stored = $this->connections->storeAccounts($connection, $brand->getKey(), $chosen);
+        try {
+            $stored = $this->connections->storeAccounts($connection, $brand->getKey(), $chosen);
+        } catch (EntitlementExceeded $e) {
+            // A clear message with a way out, never a 500. upgrade_prompt is
+            // what the flash partial reads to offer the billing link.
+            return back()
+                ->with('error', $e->getMessage())
+                ->with('upgrade_prompt', true);
+        }
 
         return redirect()
             ->route('agency.social.index')
@@ -163,7 +172,18 @@ final class SocialAccountController extends Controller
          | AccountStatus::Disconnected already means exactly this: canPublish()
          | is false, and countsTowardLimit() is false so the seat is freed.
          */
-        $account->forceFill(['status' => AccountStatus::Disconnected->value])->save();
+        $account->forceFill([
+            'status' => AccountStatus::Disconnected->value,
+            /*
+             | And the token goes, which the migration asked for in as many
+             | words: "Disconnect sets status and nulls the tokens instead."
+             | A disconnected account has no use for a live page token, and
+             | keeping credentials at rest past the moment they are needed is
+             | how a database read later becomes a publishing incident.
+             */
+            'page_access_token' => null,
+            'token_expires_at' => null,
+        ])->save();
 
         /*
          | The GRANT is left alone. Several destinations usually share one
