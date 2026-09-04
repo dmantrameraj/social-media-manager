@@ -35,3 +35,9 @@ Thumbs.db
 
 # Machine-specific tooling config (launch.json pins an absolute PHP path).
 .claude/
+
+# Zero-byte artifacts from shell redirection in tooling: a '>' inside a
+# command's content redirects instead of being passed through, creating a
+# file named after whatever followed it. They carry no content and have
+# been committed by accident more than once.
+*()
