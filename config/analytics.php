@@ -51,4 +51,13 @@ return [
      */
     'raw_retention_days' => env('ANALYTICS_RAW_RETENTION_DAYS', 400),
 
+    /*
+     | How long a monthly report link stays open.
+     |
+     | Long enough that a client returning to the email six weeks later still
+     | finds it working; short enough that an old inbox is not a standing
+     | window into a business's performance.
+     */
+    'monthly_report_expiry_days' => (int) env('ANALYTICS_MONTHLY_REPORT_EXPIRY_DAYS', 60),
+
 ];

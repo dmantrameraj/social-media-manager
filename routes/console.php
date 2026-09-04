@@ -102,6 +102,17 @@ Schedule::command('inbox:sync')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
 
+/*
+ | Last month's report, to each client, on the morning of the 1st.
+ |
+ | 06:00 rather than midnight: a report timestamped 00:00 on the 1st looks
+ | automated in a way that invites less trust than one arriving with the
+ | working day, and collection has had the small hours to catch up.
+ */
+Schedule::command('reports:send-monthly')
+    ->monthlyOn(1, '06:00')
+    ->withoutOverlapping();
+
 Schedule::command('analytics:collect')
     ->everySixHours()
     ->withoutOverlapping();
