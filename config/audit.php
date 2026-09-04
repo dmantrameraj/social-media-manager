@@ -71,4 +71,17 @@ return [
         'last_login_ip',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Account activity shown to a user
+    |--------------------------------------------------------------------------
+    |
+    | How many of their own authentication events a user sees on the security
+    | screen. Enough to recognise a pattern, few enough that the query is cheap
+    | on an account with years of history behind it.
+    |
+    */
+
+    'login_history_shown' => (int) env('AUDIT_LOGIN_HISTORY_SHOWN', 20),
+
 ];

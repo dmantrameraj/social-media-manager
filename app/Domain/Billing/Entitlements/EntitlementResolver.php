@@ -6,6 +6,7 @@ namespace App\Domain\Billing\Entitlements;
 
 use App\Domain\Billing\Entitlements\Enums\EntitlementType;
 use App\Domain\Billing\Entitlements\Exceptions\EntitlementExceeded;
+use App\Domain\Media\Enums\MediaStatus;
 use App\Domain\Social\Enums\AccountStatus;
 use App\Domain\Tenancy\Models\Tenant;
 use Illuminate\Support\Carbon;
@@ -192,7 +193,10 @@ final class EntitlementResolver
              */
             'social_accounts' => DB::table('social_accounts')
                 ->where('tenant_id', $tenant->getKey())
-                ->where('status', '!=', AccountStatus::Disconnected->value)
+                ->whereIn('status', self::valuesWhere(
+                    AccountStatus::cases(),
+                    fn (AccountStatus $status): bool => $status->countsTowardLimit(),
+                ))
                 ->count(),
 
             /*
@@ -222,7 +226,10 @@ final class EntitlementResolver
             'storage_bytes' => (int) DB::table('media')
                 ->where('tenant_id', $tenant->getKey())
                 ->whereNull('deleted_at')
-                ->whereIn('status', ['ready', 'processing'])
+                ->whereIn('status', self::valuesWhere(
+                    MediaStatus::cases(),
+                    fn (MediaStatus $status): bool => $status->countsTowardStorage(),
+                ))
                 // Variants are real files on the same disk. Counting only
                 // the upload would let a tenant at their limit keep writing
                 // derivatives the quota never sees.
@@ -279,6 +286,30 @@ final class EntitlementResolver
             ->value('current_period_start');
 
         return $start === null ? now()->startOfMonth() : Carbon::parse($start);
+    }
+
+    /**
+     * The stored values of the cases a predicate accepts.
+     *
+     * The enums already state these rules -- MediaStatus::countsTowardStorage()
+     * and AccountStatus::countsTowardLimit() -- and this file used to restate
+     * them as literal lists. They agreed, which is exactly the danger: two
+     * copies of one rule agree right up until somebody changes one, and the
+     * half that silently keeps the old answer is the half that bills a
+     * customer wrongly.
+     *
+     * @template T of \BackedEnum
+     *
+     * @param  list<T>  $cases
+     * @param  callable(T): bool  $predicate
+     * @return list<string>
+     */
+    private static function valuesWhere(array $cases, callable $predicate): array
+    {
+        return array_values(array_map(
+            fn (\BackedEnum $case): string => (string) $case->value,
+            array_filter($cases, $predicate),
+        ));
     }
 
     public function forget(Tenant $tenant, ?string $key = null): void

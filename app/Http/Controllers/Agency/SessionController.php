@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Agency;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Audit\Models\LoginHistory;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -51,7 +53,39 @@ final class SessionController extends Controller
         return view('agency.sessions.index', [
             'title' => 'Signed-in devices',
             'sessions' => $sessions,
+            'activity' => $this->recentActivity($request),
         ]);
+    }
+
+    /**
+     * This account's recent authentication events.
+     *
+     * login_histories has been written on every sign-in, failure, lockout and
+     * password reset since Phase 1 and read by nothing -- the migration even
+     * carries an index built for this exact query that no code ran. A security
+     * log only the database can see protects nobody: noticing "signed in from
+     * a country I have never visited" is the point, and only the account
+     * holder can notice it.
+     *
+     * Scoped by the morph TYPE as well as the id. Ids overlap between `users`
+     * and `customer_portal_users`, which is the same collision the guard column
+     * on `sessions` exists to prevent one line above -- without the type, a
+     * staff member would be shown a client's sign-in history.
+     *
+     * @return Collection<int, LoginHistory>
+     */
+    private function recentActivity(Request $request): Collection
+    {
+        return LoginHistory::query()
+            ->where('authenticatable_type', $request->user()::class)
+            ->where('authenticatable_id', $request->user()->getKey())
+            ->latest('created_at')
+            ->latest('id')
+            // Bounded. A busy account accumulates thousands of these, and a
+            // screen somebody opens because they are worried is the wrong
+            // place to be slow.
+            ->limit((int) config('audit.login_history_shown', 20))
+            ->get();
     }
 
     /**
