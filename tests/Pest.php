@@ -105,6 +105,23 @@ function applicationFiles(): array
  * fatal that kills the entire run before a single test executes, and it is
  * invisible when either file is run on its own.
  */
+/**
+ * Sign in as an agency user with the workspace already selected.
+ *
+ * Lives here rather than in a test file because a helper defined in one file
+ * is invisible when a DIFFERENT file is run on its own -- and running one file
+ * is what everybody does while writing a test.
+ *
+ * Reads $this->tenant, which every caller sets in its beforeEach.
+ */
+function asAgencyUser(User $user)
+{
+    return test()->actingAs($user, 'web')
+        ->withSession([
+            config('tenancy.resolution.session_key', 'tenant_id') => test()->tenant->getKey(),
+        ]);
+}
+
 function memberWithRole(Tenant $tenant, string $role): User
 {
     $user = User::factory()->create();

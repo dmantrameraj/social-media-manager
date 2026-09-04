@@ -26,6 +26,7 @@ use App\Http\Controllers\Agency\NotificationSettingsController;
 use App\Http\Controllers\Agency\OAuthController;
 use App\Http\Controllers\Agency\PostCommentController;
 use App\Http\Controllers\Agency\PostController;
+use App\Http\Controllers\Agency\PostImportController;
 use App\Http\Controllers\Agency\ReportShareController;
 use App\Http\Controllers\Agency\SessionController;
 use App\Http\Controllers\Agency\SettingsController;
@@ -87,9 +88,31 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
 
     Route::get('content', [PostController::class, 'index'])->name('posts.index');
     Route::get('content/create', [PostController::class, 'create'])->name('posts.create');
+
+    /*
+     | Bulk import. Declared BEFORE content/{post} so "import" is not swallowed
+     | as a post id -- Laravel matches in declaration order, and a route that
+     | silently becomes a 404 for one word is a long afternoon.
+     |
+     | Closes posts.bulk_import, which had been in the permission catalogue
+     | since Step 5 governing nothing.
+     */
+    Route::get('content/import', [PostImportController::class, 'create'])->name('posts.import');
+    Route::post('content/import', [PostImportController::class, 'store'])->name('posts.import.store');
+    Route::get('content/import/template', [PostImportController::class, 'template'])
+        ->name('posts.import.template');
     Route::post('content', [PostController::class, 'store'])->name('posts.store');
     Route::get('content/{post}', [PostController::class, 'show'])->name('posts.show');
     Route::post('content/{post}/transition', [PostController::class, 'transition'])->name('posts.transition');
+
+    /*
+     | Moving a post in time. Reachable from the calendar by dragging and from
+     | the post screen by picking a time -- one endpoint, so both gestures meet
+     | the same checks. A drag that only had client-side validation would be a
+     | way to schedule into the past.
+     */
+    Route::post('content/{post}/reschedule', [PostController::class, 'reschedule'])
+        ->name('posts.reschedule');
 
     /*
      | The agency half of the conversation. PostComment carries is_internal for

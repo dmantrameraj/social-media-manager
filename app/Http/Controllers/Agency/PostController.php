@@ -8,14 +8,18 @@ use App\Domain\Customers\Models\Customer;
 use App\Domain\Media\Models\Media;
 use App\Domain\Media\Services\SignedMediaUrl;
 use App\Domain\Publishing\Enums\PostStatus;
+use App\Domain\Publishing\Enums\TargetStatus;
+use App\Domain\Publishing\Exceptions\CannotReschedule;
 use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostComment;
 use App\Domain\Publishing\Models\PostTarget;
+use App\Domain\Publishing\Services\ReschedulePostService;
 use App\Domain\Publishing\Workflow\PostStatusMachine;
 use App\Domain\Social\Models\SocialAccount;
 use App\Http\Requests\Agency\StorePostRequest;
 use App\Support\TenantContext;
 use Illuminate\Contracts\View\View;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -225,6 +229,76 @@ final class PostController
         return back()->with('status', 'Post updated.');
     }
 
+    /**
+     * Move a scheduled post, from the calendar or from the post screen.
+     *
+     * A drag-and-drop is a request like any other. The browser is told what it
+     * may do only so the UI does not offer the impossible; everything that
+     * decides whether the move HAPPENS -- permission, tenancy, brand access,
+     * post state, targets in flight, lead time -- is decided again here.
+     */
+    public function reschedule(
+        Request $request,
+        Post $post,
+        ReschedulePostService $scheduler,
+    ): RedirectResponse|JsonResponse {
+        $request->user()->can('posts.schedule') || abort(403);
+        $this->assertReachable($request, $post);
+
+        $validated = $request->validate([
+            /*
+             | Two shapes, because a drag and a form are different gestures.
+             | Dropping a post on the 14th says WHICH DAY and nothing about the
+             | minute, so `date` keeps the time the author already chose. The
+             | post screen sends a full `scheduled_at` and sets both.
+             */
+            'date' => ['required_without:scheduled_at', 'nullable', 'date_format:Y-m-d'],
+            'scheduled_at' => ['required_without:date', 'nullable', 'date'],
+        ]);
+
+        $wallClock = isset($validated['scheduled_at'])
+            ? (string) $validated['scheduled_at']
+            : $validated['date'].' '.$this->timeOfDay($post);
+
+        try {
+            $scheduler->execute($post, $scheduler->resolve($post, $wallClock), $request->user());
+        } catch (CannotReschedule $e) {
+            return $request->expectsJson()
+                ? response()->json(['message' => $e->getMessage()], 422)
+                : back()->with('error', $e->getMessage());
+        }
+
+        $post->refresh();
+
+        $when = $post->scheduled_at
+            ->copy()
+            ->setTimezone($post->timezone ?: config('app.timezone'))
+            ->format('j M Y, H:i');
+
+        return $request->expectsJson()
+            ? response()->json(['message' => 'Moved to '.$when.'.', 'scheduled_at' => $post->scheduled_at->toIso8601String()])
+            : back()->with('status', 'Moved to '.$when.'.');
+    }
+
+    /**
+     * The time of day a dragged post keeps.
+     *
+     * Read in the post's own timezone. Taking it from the UTC column would
+     * move an Asia/Kolkata post's 09:00 to 03:30 the moment somebody dragged
+     * it to another day, which is not what dragging a post means.
+     */
+    private function timeOfDay(Post $post): string
+    {
+        if ($post->scheduled_at === null) {
+            return (string) config('publishing.default_schedule_time', '09:00');
+        }
+
+        return $post->scheduled_at
+            ->copy()
+            ->setTimezone($post->timezone ?: config('app.timezone'))
+            ->format('H:i');
+    }
+
     public function calendar(Request $request): View
     {
         $request->user()->can('posts.view') || abort(403);
@@ -238,18 +312,54 @@ final class PostController
          | query is a guaranteed incident once an agency has thousands of
          | posts.
          */
-        $posts = Post::query()
+        $scheduled = Post::query()
             ->whereIn('customer_id', $this->visibleBrandIds($request))
             ->whereNotNull('scheduled_at')
-            ->whereBetween('scheduled_at', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])
+            /*
+             | A day wider at each end than the month being shown.
+             |
+             | scheduled_at is UTC and the grid is drawn in the brand's zone, so
+             | the two disagree at the edges: a post at 02:00 on 1 October in
+             | Asia/Kolkata is stored as 20:30 on 30 September. Querying the
+             | month exactly would drop it from October and show it in
+             | September. No timezone is more than a day out, so a day of slack
+             | covers every zone, and the grouping below decides the real day.
+             */
+            ->whereBetween('scheduled_at', [
+                $month->copy()->startOfMonth()->subDay(),
+                $month->copy()->endOfMonth()->addDay(),
+            ])
             ->orderBy('scheduled_at')
-            ->get()
-            ->groupBy(fn (Post $post): string => $post->scheduled_at->toDateString());
+            ->get();
+
+        /*
+         | Which of these may be dragged, decided in ONE query for the month
+         | rather than one per post. A calendar that asked per row would issue
+         | a hundred queries to draw a busy month.
+         |
+         | This only governs the draggable attribute. The endpoint checks the
+         | same things again, because anything the browser is told is a
+         | suggestion.
+         */
+        $inFlight = PostTarget::query()
+            ->whereIn('post_id', $scheduled->modelKeys())
+            ->where('status', TargetStatus::Processing->value)
+            ->pluck('post_id')
+            ->all();
+
+        $movable = $scheduled
+            ->filter(fn (Post $post): bool => ReschedulePostService::statusPermitsMove($post->status)
+                && ! in_array($post->getKey(), $inFlight, true))
+            ->modelKeys();
 
         return view('agency.posts.calendar', [
             'title' => 'Calendar',
             'month' => $month,
-            'posts' => $posts,
+            'posts' => $scheduled->groupBy(fn (Post $post): string => $post->scheduled_at
+                ->copy()
+                ->setTimezone($post->timezone ?: config('app.timezone'))
+                ->toDateString()),
+            'movable' => $movable,
         ]);
     }
 

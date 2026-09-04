@@ -6,6 +6,7 @@ namespace App\Domain\Publishing\Workflow;
 
 use App\Domain\Audit\AuditLogger;
 use App\Domain\Audit\Enums\ActorType;
+use App\Domain\Billing\Entitlements\EntitlementResolver;
 use App\Domain\Identity\Models\CustomerPortalUser;
 use App\Domain\Identity\Models\User;
 use App\Domain\Notifications\PostEventDispatcher;
@@ -14,6 +15,7 @@ use App\Domain\Publishing\Exceptions\IllegalTransition;
 use App\Domain\Publishing\Exceptions\UnauthorizedTransition;
 use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostApproval;
+use App\Domain\Tenancy\Models\Tenant;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
 use Throwable;
@@ -108,6 +110,7 @@ final class PostStatusMachine
     public function __construct(
         private readonly AuditLogger $audit,
         private readonly PostEventDispatcher $notifications,
+        private readonly EntitlementResolver $entitlements,
     ) {}
 
     public function canTransition(Post $post, PostStatus $to): bool
@@ -167,6 +170,34 @@ final class PostStatusMachine
             }
 
             return;
+        }
+
+        /*
+         | The plan limit, checked here rather than in a controller.
+         |
+         | Scheduling is the metered act -- it is what a plan sells by the
+         | month -- and this is the one place every path to Scheduled passes
+         | through: the composer, the calendar, a retry, a future API. A check
+         | in PostController would be a check the console and the queue skip,
+         | which is the same reason guard() says it belongs in a service.
+         |
+         | Usage counts DISTINCT posts, so re-scheduling one that has already
+         | been counted -- a retry after a failure, a post moved and moved
+         | again -- costs nothing and cannot strand a tenant at their limit
+         | with a post they cannot recover.
+         */
+        if ($to === PostStatus::Scheduled) {
+            $tenant = Tenant::query()->find($post->tenant_id);
+
+            /*
+             | Only a post that has not already been counted this period. A
+             | retry after a failure, or a post moved back to draft and out
+             | again, is the same post -- and a tenant at their limit who could
+             | not retry would have paid for a post that never went out.
+             */
+            if ($tenant !== null && ! $this->entitlements->alreadyScheduledThisPeriod($tenant, $post->getKey())) {
+                $this->entitlements->guard($tenant, 'posts.scheduled_per_month');
+            }
         }
 
         $permissions = self::REQUIRED_PERMISSIONS;

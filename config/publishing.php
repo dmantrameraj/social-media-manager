@@ -55,6 +55,28 @@ return [
      */
     'job_time_budget' => (int) env('PUBLISHING_JOB_TIME_BUDGET', 35),
 
+    /*
+     | Time of day used when a post with no time yet is dropped onto a calendar
+     | day. A drag says WHICH DAY, never which minute, so the minute has to come
+     | from somewhere -- and it has to be the same somewhere every time, or two
+     | identical drags produce two different schedules.
+     |
+     | Read in the brand timezone, not UTC.
+     */
+    'default_schedule_time' => env('PUBLISHING_DEFAULT_SCHEDULE_TIME', '09:00'),
+
+    'import' => [
+        /*
+         | Most rows one upload may carry.
+         |
+         | A bound rather than a judgement about how much content an agency
+         | plans: every row is a post, targets and an audit entry, and an
+         | unbounded file is a cheap way to make one request do an unbounded
+         | amount of work.
+         */
+        'max_rows' => (int) env('PUBLISHING_IMPORT_MAX_ROWS', 500),
+    ],
+
     'recurrence_horizon_days' => 60,
 
 ];

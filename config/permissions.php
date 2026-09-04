@@ -168,6 +168,10 @@ return [
             'customers.view', 'customers.view_all', 'customers.update',
             'posts.view', 'posts.create', 'posts.update', 'posts.delete',
             'posts.publish', 'posts.approve_internal', 'posts.schedule', 'posts.retry',
+            // Planning a month of content is a manager's job, and they already
+            // create and schedule posts one at a time. A Content Creator does
+            // not get it: the blast radius of a bad file is larger.
+            'posts.bulk_import',
             'media.view', 'media.upload', 'media.update', 'media.delete', 'media.manage_folders',
             'social_accounts.view', 'social_accounts.assign',
             'inbox.view', 'inbox.reply', 'inbox.manage',

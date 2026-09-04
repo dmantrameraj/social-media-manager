@@ -33,15 +33,6 @@ beforeEach(function (): void {
     ]);
 });
 
-/** Sign in as a user, with the workspace already selected. */
-function asAgencyUser(User $user)
-{
-    return test()->actingAs($user, 'web')
-        ->withSession([
-            config('tenancy.resolution.session_key', 'tenant_id') => test()->tenant->getKey(),
-        ]);
-}
-
 function memberWith(string $role): User
 {
     $user = User::factory()->create();

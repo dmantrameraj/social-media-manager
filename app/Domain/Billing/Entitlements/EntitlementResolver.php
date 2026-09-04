@@ -8,6 +8,7 @@ use App\Domain\Billing\Entitlements\Enums\EntitlementType;
 use App\Domain\Billing\Entitlements\Exceptions\EntitlementExceeded;
 use App\Domain\Social\Enums\AccountStatus;
 use App\Domain\Tenancy\Models\Tenant;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -194,7 +195,29 @@ final class EntitlementResolver
                 ->where('status', '!=', AccountStatus::Disconnected->value)
                 ->count(),
 
-            'posts_scheduled_this_period' => 0, // Phase 3
+            /*
+             | Distinct posts that have been SCHEDULED during the current
+             | billing period.
+             |
+             | Read from post_approvals rather than from posts.status, because
+             | status is where a post is now and the limit is about what the
+             | tenant did. A post scheduled on the 3rd, published on the 4th
+             | and long since archived still consumed one of the twenty a plan
+             | sells.
+             |
+             | DISTINCT is what makes rescheduling free. Moving a post to next
+             | Tuesday writes another approval row, and charging for that would
+             | mean an agency tidying its calendar ran out of plan.
+             |
+             | This read 0 with a "Phase 3" note against it, which meant every
+             | plan sold a scheduling limit that nothing enforced.
+             */
+            'posts_scheduled_this_period' => DB::table('post_approvals')
+                ->where('tenant_id', $tenant->getKey())
+                ->where('to_status', 'scheduled')
+                ->where('created_at', '>=', $this->periodStart($tenant))
+                ->distinct()
+                ->count('post_id'),
 
             'storage_bytes' => (int) DB::table('media')
                 ->where('tenant_id', $tenant->getKey())
@@ -209,6 +232,53 @@ final class EntitlementResolver
 
             default => 0,
         };
+    }
+
+    /**
+     * Whether this post has already consumed a scheduling allowance in the
+     * current period.
+     *
+     * Lives here, next to the counter it mirrors, because the two must agree:
+     * currentUsage counts DISTINCT posts, so a post that is already in that
+     * count costs nothing to schedule again -- and guard(), which can only ask
+     * "may you add one more?", would refuse it anyway.
+     *
+     | Without this a tenant at their limit could not retry a failed post: they
+     | would have paid for a post that never went out and be unable to recover
+     | it. If the predicate below changes, change it in currentUsage too.
+     */
+    public function alreadyScheduledThisPeriod(Tenant $tenant, int|string $postId): bool
+    {
+        return DB::table('post_approvals')
+            ->where('tenant_id', $tenant->getKey())
+            ->where('post_id', $postId)
+            ->where('to_status', 'scheduled')
+            ->where('created_at', '>=', $this->periodStart($tenant))
+            ->exists();
+    }
+
+    /**
+     * When the tenant's current billing period began.
+     *
+     * The subscription's own period, so a tenant billed on the 9th gets
+     * their allowance back on the 9th rather than on the 1st -- anchoring a
+     * plan limit to the calendar would give a tenant who signs up on the 28th
+     * three days of product for a month's money.
+     *
+     * Falls back to the calendar month for a tenant with no subscription row
+     * at all: manual activation and trials still need a window, and a null
+     * here would count every post the tenant has ever scheduled.
+     */
+    private function periodStart(Tenant $tenant): Carbon
+    {
+        $start = DB::table('subscriptions')
+            ->where('tenant_id', $tenant->getKey())
+            ->whereNull('deleted_at')
+            ->whereIn('status', $this->entitlingStatuses())
+            ->orderByDesc('id')
+            ->value('current_period_start');
+
+        return $start === null ? now()->startOfMonth() : Carbon::parse($start);
     }
 
     public function forget(Tenant $tenant, ?string $key = null): void

@@ -13,6 +13,7 @@
         ['route' => 'agency.brands.index', 'label' => 'Brands', 'permission' => 'customers.view'],
         ['route' => 'agency.calendar', 'label' => 'Calendar', 'permission' => 'posts.view'],
         ['route' => 'agency.posts.create', 'label' => 'Create post', 'permission' => 'posts.create'],
+        ['route' => 'agency.posts.import', 'label' => 'Import', 'permission' => 'posts.bulk_import'],
         ['route' => 'agency.media.index', 'label' => 'Media', 'permission' => 'media.view'],
         ['route' => 'agency.ai.index', 'label' => 'AI studio', 'permission' => 'ai.use'],
         ['route' => 'agency.inbox.index', 'label' => 'Inbox', 'permission' => 'inbox.view'],
@@ -42,6 +43,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    {{-- Read by any script that posts without a form; the calendar does. --}}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ isset($title) ? $title.' · ' : '' }}{{ $branding->appName() }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles

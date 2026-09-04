@@ -90,7 +90,7 @@ the adapter itself must be written against live Meta documentation.
 
 ---
 
-## Phase 3 — Publishing Engine ✅ *(two scoped items deferred)*
+## Phase 3 — Publishing Engine ✅
 
 Unified composer with per-platform overrides; provider validation; approval workflow and
 state machine; scheduling with timezones; content calendar; queued publishing with claim
@@ -103,14 +103,30 @@ recurring post architecture.
 - [x] Concurrent dispatch claims a target exactly once — `SKIP LOCKED`, tested concurrently
 - [x] Stale locks go to verification, not blind retry
 - [x] Approval workflow enforces transitions and permissions, with a full audit trail
-- [ ] **Calendar drag-and-drop re-validates server-side** — the calendar renders; there is
-      no reschedule endpoint, so there is nothing to drag. Editing a post changes its time.
-- [ ] **Timezone handling verified across at least three zones including a DST boundary** —
-      scheduling stores UTC and renders in the brand timezone, which is tested; the DST
-      boundary case is not.
-- [ ] **CSV import handles partial success with per-row reporting** — not built. The only
-      CSV in the codebase is the analytics export.
+- [x] Calendar drag-and-drop re-validates server-side — dropping a post on a day posts to
+      `posts.reschedule`, which decides permission, tenancy, brand access, post state,
+      targets in flight and lead time again. The browser is told what it may drag only so
+      the UI does not offer the impossible. The post AND its targets move together: the
+      dispatcher reads `post_targets.scheduled_at`, so moving only the post would change
+      what the calendar shows and nothing about when the post goes out.
+- [x] Timezone handling verified across at least three zones including a DST boundary —
+      Asia/Kolkata (no DST), Europe/London and America/New_York, across both the spring
+      and autumn transitions. The rule tested is that moving a post to another day keeps
+      its WALL CLOCK: 09:00 stays 09:00 when the offset changes underneath it. A post also
+      keeps the zone it was written in, so a brand changing timezone does not drag every
+      post already on the calendar.
+- [x] CSV import handles partial success with per-row reporting — each row is its own
+      transaction and its own verdict, reported by its line number in the file. Everything
+      lands as a draft: a CSV that could schedule would be a way to put content past the
+      approval gate by uploading a file. Closes `posts.bulk_import`, which had been in the
+      permission catalogue since Step 5 governing nothing.
 - [ ] `PHASE-3-COMPLETION.md` written — see `PHASE-2-3-PROGRESS.md`
+
+Also closed here, though it belongs to Phase 1's entitlement work:
+**`posts.scheduled_per_month` is now enforced.** Its usage counter was hardcoded to 0 with
+a "Phase 3" note beside it, so every plan sold a scheduling limit that nothing checked. The
+guard sits in `PostStatusMachine`, the one place every path to Scheduled passes through,
+and counts distinct posts — so retrying a failed post, or moving one twice, is free.
 
 **This phase delivers the core product.** After it, the platform is usable.
 
