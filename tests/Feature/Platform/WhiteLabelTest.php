@@ -109,7 +109,14 @@ it('refuses a colour that is not a colour', function (): void {
         'tenant_id' => $this->tenant->getKey(),
     ]);
 
-    $setting->forceFill(['primary_color' => 'red; background:url(//evil)'])->save();
+    /*
+     | Short enough to fit. primary_color is varchar(9) -- long enough for
+     | #RRGGBBAA -- so a sprawling injection payload is refused by the COLUMN
+     | before the resolver is reached, which is a defence worth knowing about
+     | but not the one under test here. This value fits and is still not a
+     | colour, so it reaches the resolver and must be rejected there.
+     */
+    $setting->forceFill(['primary_color' => 'red;a{}'])->save();
 
     expect(app(BrandingResolver::class)->primaryColor())
         ->toBe(config('branding.colors.primary'));
