@@ -14,6 +14,7 @@ use App\Domain\Social\Enums\ProviderErrorClass;
 use App\Domain\Social\Models\SocialAccount;
 use App\Domain\Social\ProviderRegistry;
 use App\Domain\Social\Providers\Fake\FakeProvider;
+use App\Domain\Tenancy\Enums\TenantStatus;
 use App\Domain\Tenancy\Services\ProvisionTenantService;
 
 /*
@@ -116,6 +117,29 @@ it('lands on partially published when one target of two fails', function (): voi
     runJob($second->fresh());
 
     expect($this->post->fresh()->status)->toBe(PostStatus::PartiallyPublished);
+});
+
+// ------------------------------------------------------------ who may publish
+
+it('releases the claim instead of publishing for a suspended agency', function (): void {
+    /*
+     | Checked in the job as well as the dispatcher, because a job can sit on
+     | the queue across a suspension: the tenant was publishable when this was
+     | claimed and is not when it runs.
+     */
+    $target = claimedTarget();
+    FakeProvider::willSucceedWith('should-not-happen');
+
+    $this->tenant->forceFill(['status' => TenantStatus::Suspended->value])->save();
+
+    runJob($target);
+
+    // Released, not failed -- no attempt consumed, and the post goes out when
+    // they are paying again.
+    expect($target->fresh()->status)->toBe(TargetStatus::Scheduled)
+        ->and($target->fresh()->external_post_id)->toBeNull()
+        ->and($target->fresh()->locked_at)->toBeNull()
+        ->and(FakeProvider::publishCallCount())->toBe(0);
 });
 
 // ------------------------------------------------------------- double-posting

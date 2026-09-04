@@ -79,7 +79,7 @@ final class PublishPostTarget implements ShouldQueue
          | the ordinary tenant scope, so a bug in this job cannot reach another
          | agency's rows. run() restores the previous context afterwards.
          */
-        $context->run($tenant, function () use ($claims, $publisher, $payloads, $machine): void {
+        $context->run($tenant, function () use ($tenant, $claims, $publisher, $payloads, $machine): void {
             $target = PostTarget::query()
                 ->with(['post.media', 'socialAccount'])
                 ->find($this->targetId);
@@ -95,6 +95,22 @@ final class PublishPostTarget implements ShouldQueue
              | released -- and publishing again would double-post.
              */
             if ($target->status !== TargetStatus::Processing) {
+                return;
+            }
+
+            /*
+             | Checked here as well as in the dispatcher, because a job can sit
+             | on the queue across a suspension: the tenant was publishable
+             | when this was claimed and may not be when it runs.
+             |
+             | Released rather than failed, which is what release() is for --
+             | the work returns to the queue without consuming an attempt, so
+             | reinstating the tenant resumes the schedule instead of making
+             | them rebuild it.
+             */
+            if (! $tenant->permitsPublishing()) {
+                $claims->release($target);
+
                 return;
             }
 

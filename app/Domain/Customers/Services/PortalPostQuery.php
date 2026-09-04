@@ -33,6 +33,16 @@ final class PortalPostQuery
      * enum is not a security boundary, and a status inserted in the middle
      * later must not silently become visible.
      *
+     * THE ONLY definition of client visibility. There used to be a second --
+     * PostStatus::isVisibleToPortal(), consumed by Post::scopeVisibleToPortal()
+     * -- and the two had drifted apart: that pair also admitted `failed`.
+     * Neither had a caller, so nothing was exposed, but the scope was named
+     * exactly what somebody would reach for and using it would have started
+     * showing clients failed posts with no review of that decision.
+     *
+     * Both were deleted rather than reconciled. If a query scope is wanted
+     * again, derive it from this constant so there is still one answer.
+     *
      * @var list<PostStatus>
      */
     public const VISIBLE_STATUSES = [

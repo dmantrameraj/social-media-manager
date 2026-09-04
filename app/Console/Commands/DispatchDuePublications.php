@@ -7,6 +7,8 @@ namespace App\Console\Commands;
 use App\Domain\Publishing\Jobs\PublishPostTarget;
 use App\Domain\Publishing\Models\PostTarget;
 use App\Domain\Publishing\Services\ClaimPostTargetService;
+use App\Domain\Tenancy\Enums\TenantStatus;
+use App\Domain\Tenancy\Models\Tenant;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -47,6 +49,33 @@ final class DispatchDuePublications extends Command
         $targets = PostTarget::query()
             ->acrossTenants()
             ->due()
+            /*
+             | Suspended agencies do not publish.
+             |
+             | TenantStatus::permitsPublishing() has encoded this rule since
+             | Phase 1 and had no caller: permitsProductAccess() is enforced by
+             | EnsureTenantActive, but that is HTTP middleware, and publishing
+             | runs on a schedule and a queue where no middleware applies. A
+             | tenant who stopped paying kept receiving the core paid service.
+             |
+             | Grace is included or not by config, per docs/09-BILLING.md §5 --
+             | cutting off a client's posts because an agency's card expired
+             | damages a relationship grace exists to protect. Evaluated per
+             | run so the flag takes effect without a deploy.
+             |
+             | Targets are LEFT scheduled rather than failed. Reinstating a
+             | tenant should resume their schedule, not require them to rebuild
+             | it.
+             */
+            ->whereIn('tenant_id', Tenant::query()
+                ->whereIn('status', array_values(array_map(
+                    static fn (TenantStatus $s): string => $s->value,
+                    array_filter(
+                        TenantStatus::cases(),
+                        static fn (TenantStatus $s): bool => $s->permitsPublishing(),
+                    ),
+                )))
+                ->select('id'))
             ->orderBy('scheduled_at')
             ->limit($limit)
             ->get();

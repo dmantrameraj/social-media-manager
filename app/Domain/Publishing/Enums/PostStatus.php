@@ -28,17 +28,6 @@ enum PostStatus: string
     case Cancelled = 'cancelled';
     case Paused = 'paused';
 
-    /** Visible to a client in the portal only from CLIENT_REVIEW onward. */
-    public function isVisibleToPortal(): bool
-    {
-        return match ($this) {
-            self::ClientReview, self::ClientApproved, self::Scheduled,
-            self::Processing, self::Published, self::PartiallyPublished,
-            self::Rejected, self::Failed => true,
-            default => false,
-        };
-    }
-
     public function isEditable(): bool
     {
         return match ($this) {

@@ -12,7 +12,6 @@ use App\Domain\Publishing\Enums\TargetStatus;
 use App\Domain\Tenancy\Concerns\BelongsToTenant;
 use Database\Factories\PostFactory;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -101,15 +100,6 @@ class Post extends Model
         return $this->belongsToMany(Media::class, 'post_media')
             ->withPivot(['sort_order', 'role', 'post_target_id'])
             ->orderBy('post_media.sort_order');
-    }
-
-    /** @param  Builder<self>  $query */
-    public function scopeVisibleToPortal(Builder $query): Builder
-    {
-        return $query->whereIn('status', array_values(array_map(
-            static fn (PostStatus $s): string => $s->value,
-            array_filter(PostStatus::cases(), static fn (PostStatus $s): bool => $s->isVisibleToPortal()),
-        )));
     }
 
     /**

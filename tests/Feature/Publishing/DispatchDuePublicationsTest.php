@@ -12,6 +12,7 @@ use App\Domain\Publishing\Models\PostTarget;
 use App\Domain\Social\Models\SocialAccount;
 use App\Domain\Social\ProviderRegistry;
 use App\Domain\Social\Providers\Fake\FakeProvider;
+use App\Domain\Tenancy\Enums\TenantStatus;
 use App\Domain\Tenancy\Services\ProvisionTenantService;
 use Illuminate\Support\Facades\Queue;
 
@@ -49,6 +50,76 @@ function dueTarget(array $overrides = []): PostTarget
 }
 
 // ----------------------------------------------------------------- selection
+
+// --------------------------------------------------------------- who may publish
+
+it('does not publish for a suspended agency', function (): void {
+    /*
+     | TenantStatus::permitsPublishing() encoded this rule from Phase 1 and had
+     | no caller. Its sibling permitsProductAccess() is enforced by
+     | EnsureTenantActive -- but that is HTTP middleware, and publishing runs on
+     | a schedule and a queue where no middleware applies, so an agency that
+     | stopped paying kept receiving the core paid service.
+     */
+    Queue::fake();
+    dueTarget();
+
+    $this->tenant->forceFill(['status' => TenantStatus::Suspended->value])->save();
+
+    $this->artisan('publishing:dispatch-due')->assertSuccessful();
+
+    Queue::assertNothingPushed();
+});
+
+it('leaves posts scheduled for a suspended agency rather than failing them', function (): void {
+    // Reinstating a tenant should resume their schedule, not make them
+    // rebuild it.
+    Queue::fake();
+    $target = dueTarget();
+
+    $this->tenant->forceFill(['status' => TenantStatus::Suspended->value])->save();
+    $this->artisan('publishing:dispatch-due')->assertSuccessful();
+
+    expect($target->fresh()->status)->toBe(TargetStatus::Scheduled);
+
+    // And it goes out once they are paying again.
+    $this->tenant->forceFill(['status' => TenantStatus::Active->value])->save();
+    $this->artisan('publishing:dispatch-due')->assertSuccessful();
+
+    Queue::assertPushed(PublishPostTarget::class);
+});
+
+it('still publishes during grace when the config allows it', function (): void {
+    /*
+     | Grace deliberately keeps publishing by default: cutting off a client's
+     | posts because an agency's card expired damages a relationship grace
+     | exists to protect. docs/09-BILLING.md section 5.
+     */
+    config()->set('billing.publish_during_grace', true);
+
+    Queue::fake();
+    dueTarget();
+
+    $this->tenant->forceFill(['status' => TenantStatus::Grace->value])->save();
+
+    $this->artisan('publishing:dispatch-due')->assertSuccessful();
+
+    Queue::assertPushed(PublishPostTarget::class);
+});
+
+it('stops publishing during grace when the config forbids it', function (): void {
+    // The flag is read per run, so switching it takes effect without a deploy.
+    config()->set('billing.publish_during_grace', false);
+
+    Queue::fake();
+    dueTarget();
+
+    $this->tenant->forceFill(['status' => TenantStatus::Grace->value])->save();
+
+    $this->artisan('publishing:dispatch-due')->assertSuccessful();
+
+    Queue::assertNothingPushed();
+});
 
 it('queues a target whose time has come', function (): void {
     Queue::fake();
