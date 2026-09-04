@@ -6,6 +6,7 @@ use App\Domain\Access\Services\SyncPermissionCatalogueService;
 use App\Domain\AI\Models\AutopilotSetting;
 use App\Domain\AI\Models\BrandBrain;
 use App\Domain\Analytics\Models\PostMetric;
+use App\Domain\Analytics\Models\ReportShare;
 use App\Domain\Customers\Models\Customer;
 use App\Domain\Engagement\Models\InboxMessage;
 use App\Domain\Engagement\Models\InboxThread;
@@ -155,6 +156,7 @@ function provisionTenant(string $name = 'Test Agency'): array
 function tenantOwnedModels(): array
 {
     return [
+        ReportShare::class,
         Domain::class,
         InboxThread::class,
         InboxMessage::class,

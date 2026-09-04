@@ -18,6 +18,19 @@
         </include>
     </source>
     <php>
+        <!--
+             GD is memory-hungry and the media-variant tests clone full-size
+             images. At PHP's default 128M the suite began dying mid-run with
+             "Allowed memory size exhausted" inside Intervention Image once it
+             passed roughly 800 tests, a threshold that had nothing to do with
+             the code under test.
+
+             Set here rather than on the command line so a CI runner and a
+             developer's machine agree. A limit that only exists in somebody's
+             shell alias is a limit CI does not have.
+        -->
+        <ini name="memory_limit" value="512M"/>
+
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

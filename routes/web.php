@@ -26,12 +26,14 @@ use App\Http\Controllers\Agency\NotificationSettingsController;
 use App\Http\Controllers\Agency\OAuthController;
 use App\Http\Controllers\Agency\PostCommentController;
 use App\Http\Controllers\Agency\PostController;
+use App\Http\Controllers\Agency\ReportShareController;
 use App\Http\Controllers\Agency\SessionController;
 use App\Http\Controllers\Agency\SettingsController;
 use App\Http\Controllers\Agency\SocialAccountController;
 use App\Http\Controllers\Agency\SuspendedController;
 use App\Http\Controllers\Agency\TeamController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\SharedReportController;
 use App\Http\Controllers\TwoFactorEnrolmentController;
 use App\Http\Controllers\Webhook\RazorpayWebhookController;
 use App\Support\HomeRedirector;
@@ -151,6 +153,19 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
     Route::put('inbox/{thread}', [InboxController::class, 'update'])->name('inbox.update');
 
     Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+
+    /*
+     | Getting a report OUT. reports.generate and reports.share have been in
+     | the permission catalogue since Step 5 governing nothing -- an agency
+     | could see figures and had no way to hand them to the client who paid
+     | for the work.
+     */
+    Route::get('reports/export', [ReportShareController::class, 'export'])
+        ->name('reports.export');
+    Route::post('reports/share', [ReportShareController::class, 'store'])
+        ->name('reports.share');
+    Route::delete('reports/share/{share}', [ReportShareController::class, 'revoke'])
+        ->name('reports.share.revoke');
 
     Route::get('ai', [AiController::class, 'index'])->name('ai.index');
     Route::get('ai/{feature}', [AiController::class, 'show'])->name('ai.show');
@@ -308,6 +323,21 @@ Route::middleware(['auth:web'])->group(function (): void {
 | see docs/10-SECURITY.md section 7.
 |
 */
+/*
+ | A shared report, opened by somebody with no account.
+ |
+ | The only unauthenticated surface that shows tenant data. It is safe because
+ | the token is unguessable and stored only as a hash, the window and brand are
+ | fixed in the row rather than taken from the request, and expiry and
+ | revocation are both fatal.
+ |
+ | Throttled: the token space is far too large to guess, but an endpoint that
+ | resolves a secret should not also be a free way to probe at speed.
+ */
+Route::get('/r/{token}', SharedReportController::class)
+    ->middleware('throttle:30,1')
+    ->name('reports.shared');
+
 Route::post('/webhooks/razorpay', RazorpayWebhookController::class)
     ->middleware('throttle:100,1')
     ->withoutMiddleware([

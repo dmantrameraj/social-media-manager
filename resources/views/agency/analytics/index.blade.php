@@ -50,6 +50,64 @@
             </p>
         </form>
 
+        {{--
+         | Export and sharing need a single brand: a spreadsheet or a link
+         | covering "all brands" would put one client's figures in front of
+         | another, which is the one thing a client report must never do.
+        --}}
+        @if ($selectedBrand !== null)
+            <div class="mb-6 flex flex-wrap items-end gap-3">
+                <a href="{{ route('agency.reports.export', ['brand' => $selectedBrand, 'days' => $days]) }}"
+                   class="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">
+                    Download CSV
+                </a>
+
+                <form method="POST" action="{{ route('agency.reports.share') }}"
+                      class="flex flex-wrap items-end gap-2">
+                    @csrf
+                    <input type="hidden" name="brand" value="{{ $selectedBrand }}">
+                    <input type="hidden" name="days" value="{{ $days }}">
+
+                    <div>
+                        <label for="expires_in_days" class="block text-xs font-medium text-slate-600">
+                            Link expires in
+                        </label>
+                        <select id="expires_in_days" name="expires_in_days"
+                                class="mt-1 rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            @foreach ([7 => '7 days', 14 => '14 days', 30 => '30 days', 90 => '90 days'] as $value => $label)
+                                <option value="{{ $value }}" @selected($value === 14)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <button type="submit"
+                            class="rounded-lg border border-slate-300 px-3 py-2 text-sm hover:bg-slate-50">
+                        Create share link
+                    </button>
+                </form>
+            </div>
+
+            @if (session('share_url'))
+                {{--
+                 | Shown once. The plaintext token is never stored, so this is
+                 | the only moment it exists -- and the message says so rather
+                 | than letting somebody assume they can come back for it.
+                --}}
+                <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                    <p class="text-sm font-medium text-emerald-900">
+                        Copy this link now. It is not shown again.
+                    </p>
+                    <p class="mt-2 break-all rounded-lg bg-white px-3 py-2 font-mono text-xs">
+                        {{ session('share_url') }}
+                    </p>
+                </div>
+            @endif
+        @else
+            <p class="mb-6 text-sm text-slate-500">
+                Choose a single brand to export or share a report.
+            </p>
+        @endif
+
         @if ($totals['posts'] === 0)
             @include('agency.partials.empty', [
                 'title' => 'Nothing collected yet',
