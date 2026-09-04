@@ -20,6 +20,7 @@ use App\Http\Controllers\Agency\MediaFileController;
 use App\Http\Controllers\Agency\NotificationController;
 use App\Http\Controllers\Agency\NotificationSettingsController;
 use App\Http\Controllers\Agency\OAuthController;
+use App\Http\Controllers\Agency\PostCommentController;
 use App\Http\Controllers\Agency\PostController;
 use App\Http\Controllers\Agency\SessionController;
 use App\Http\Controllers\Agency\SettingsController;
@@ -83,6 +84,14 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
     Route::post('content', [PostController::class, 'store'])->name('posts.store');
     Route::get('content/{post}', [PostController::class, 'show'])->name('posts.show');
     Route::post('content/{post}/transition', [PostController::class, 'transition'])->name('posts.transition');
+
+    /*
+     | The agency half of the conversation. PostComment carries is_internal for
+     | exactly this, and only the client could reach it: a client could comment
+     | on work awaiting their approval and nobody at the agency would see it.
+     */
+    Route::post('content/{post}/comments', [PostCommentController::class, 'store'])
+        ->name('posts.comment');
 
     Route::get('calendar', [PostController::class, 'calendar'])->name('calendar');
 

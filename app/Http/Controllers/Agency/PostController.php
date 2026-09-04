@@ -9,6 +9,7 @@ use App\Domain\Media\Models\Media;
 use App\Domain\Media\Services\SignedMediaUrl;
 use App\Domain\Publishing\Enums\PostStatus;
 use App\Domain\Publishing\Models\Post;
+use App\Domain\Publishing\Models\PostComment;
 use App\Domain\Publishing\Models\PostTarget;
 use App\Domain\Publishing\Workflow\PostStatusMachine;
 use App\Domain\Social\Models\SocialAccount;
@@ -176,6 +177,17 @@ final class PostController
         return view('agency.posts.show', [
             'title' => $post->title ?: 'Post',
             'post' => $post->load('targets.socialAccount', 'approvals', 'media'),
+
+            /*
+             | Both halves. The agency sees internal notes AND what the client
+             | wrote -- the client's side was previously written into a table
+             | nothing on this surface read.
+             */
+            'comments' => PostComment::query()
+                ->where('post_id', $post->getKey())
+                ->orderBy('created_at')
+                ->get(),
+            'canReplyToClient' => $request->user()->can('posts.update'),
 
             // Signed URLs for the images, so staff can see what the client will
             // see rather than trusting a filename.

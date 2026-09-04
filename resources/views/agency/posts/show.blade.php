@@ -120,6 +120,87 @@
                     </ol>
                 </section>
             @endif
+
+            {{--
+             | The conversation. PostComment carries is_internal for exactly
+             | this, and only the client half was reachable: a client could
+             | write on work awaiting their approval and nobody here would ever
+             | see it.
+            --}}
+            <section class="rounded-xl border border-slate-200 bg-white p-6">
+                <h2 class="text-sm font-semibold">Conversation</h2>
+
+                @if ($comments->isEmpty())
+                    <p class="mt-3 text-sm text-slate-600">Nothing yet.</p>
+                @else
+                    <ul class="mt-3 space-y-3">
+                        @foreach ($comments as $comment)
+                            {{--
+                             | Internal notes are visibly different from what
+                             | the client can read. Someone writing a candid
+                             | note has to be able to tell at a glance which
+                             | kind of message they are looking at.
+                            --}}
+                            <li @class([
+                                'rounded-lg border p-3 text-sm',
+                                'border-amber-200 bg-amber-50' => $comment->is_internal,
+                                'border-slate-200 bg-white' => ! $comment->is_internal,
+                            ])>
+                                <p class="text-xs font-medium text-slate-500">
+                                    {{ $comment->authorLabel() }}
+                                    &middot; {{ $comment->created_at?->diffForHumans() }}
+                                    @if ($comment->is_internal)
+                                        <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800">
+                                            Internal &mdash; the client cannot see this
+                                        </span>
+                                    @endif
+                                </p>
+                                <p class="mt-1 whitespace-pre-wrap">{{ $comment->body }}</p>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+
+                <form method="POST" action="{{ route('agency.posts.comment', $post) }}" class="mt-4">
+                    @csrf
+
+                    <label for="body" class="block text-sm font-medium">Add to the conversation</label>
+                    <textarea id="body" name="body" rows="3" required minlength="2" maxlength="2000"
+                              class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    >{{ old('body') }}</textarea>
+                    @error('body')
+                        <p class="mt-1 text-sm text-red-700">{{ $message }}</p>
+                    @enderror
+
+                    <div class="mt-3 flex flex-wrap items-center gap-4">
+                        {{--
+                         | Internal is the default. Getting this wrong in the
+                         | safe direction means a colleague misses a note;
+                         | wrong the other way sends a candid remark to the
+                         | client.
+                        --}}
+                        <label class="flex items-center gap-2 text-sm">
+                            <input type="radio" name="visibility" value="internal"
+                                   @checked(old('visibility', 'internal') === 'internal')>
+                            Internal note
+                        </label>
+
+                        @if ($canReplyToClient)
+                            <label class="flex items-center gap-2 text-sm">
+                                <input type="radio" name="visibility" value="client"
+                                       @checked(old('visibility') === 'client')>
+                                Reply to the client
+                            </label>
+                        @endif
+
+                        <x-agency.button>Post</x-agency.button>
+                    </div>
+
+                    @error('visibility')
+                        <p class="mt-1 text-sm text-red-700">{{ $message }}</p>
+                    @enderror
+                </form>
+            </section>
         </div>
 
         <aside class="space-y-4">
