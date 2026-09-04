@@ -93,6 +93,15 @@ Schedule::command('publishing:dispatch-due')
  | times a day is tracked closely enough for any report anyone runs, and more
  | often would spend rate limit re-reading numbers that have barely moved.
  */
+/*
+ | Pull in conversations. Every fifteen minutes: an inbox an agency has to
+ | refresh to discover a customer wrote an hour ago is the browser tabs this
+ | feature exists to replace.
+ */
+Schedule::command('inbox:sync')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
 Schedule::command('analytics:collect')
     ->everySixHours()
     ->withoutOverlapping();

@@ -64,6 +64,17 @@ return [
             'social_credentials.manage',
         ],
 
+        /*
+         | The unified inbox. Reading a conversation, answering it and deciding
+         | who owns it are three different acts: answering speaks to a client's
+         | customer in the agency's name, and assigning decides whose job it is.
+         */
+        'inbox' => [
+            'inbox.view',
+            'inbox.reply',
+            'inbox.manage',
+        ],
+
         'ai' => [
             'ai.use',
             'ai.manage_brand_brain',
@@ -159,6 +170,7 @@ return [
             'posts.publish', 'posts.approve_internal', 'posts.schedule', 'posts.retry',
             'media.view', 'media.upload', 'media.update', 'media.delete', 'media.manage_folders',
             'social_accounts.view', 'social_accounts.assign',
+            'inbox.view', 'inbox.reply', 'inbox.manage',
             'ai.use', 'ai.manage_brand_brain',
             'team.view',
             'portal_users.view', 'portal_users.invite',
@@ -169,6 +181,8 @@ return [
             'posts.view', 'posts.create', 'posts.update',
             'media.view', 'media.upload',
             'ai.use',
+            // Answers customers; does not decide whose job a thread is.
+            'inbox.view', 'inbox.reply',
         ],
 
         'Designer' => [

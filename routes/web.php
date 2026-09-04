@@ -16,6 +16,7 @@ use App\Http\Controllers\Agency\BillingController;
 use App\Http\Controllers\Agency\BrandBrainController;
 use App\Http\Controllers\Agency\BrandController;
 use App\Http\Controllers\Agency\DashboardController;
+use App\Http\Controllers\Agency\InboxController;
 use App\Http\Controllers\Agency\MediaController;
 use App\Http\Controllers\Agency\MediaFileController;
 use App\Http\Controllers\Agency\NotificationController;
@@ -137,6 +138,16 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
      | catalogue since Step 5, and the Analyst role has existed to hold it,
      | governing nothing: no table, no collection, no screen.
      */
+    /*
+     | The unified inbox. Comments and messages from every connected account in
+     | one queue, because an agency answering four networks in four browser
+     | tabs misses the one nobody had open.
+     */
+    Route::get('inbox', [InboxController::class, 'index'])->name('inbox.index');
+    Route::get('inbox/{thread}', [InboxController::class, 'show'])->name('inbox.show');
+    Route::post('inbox/{thread}/reply', [InboxController::class, 'reply'])->name('inbox.reply');
+    Route::put('inbox/{thread}', [InboxController::class, 'update'])->name('inbox.update');
+
     Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
 
     Route::get('ai', [AiController::class, 'index'])->name('ai.index');

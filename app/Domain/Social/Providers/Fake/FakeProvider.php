@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Domain\Social\Providers\Fake;
 
+use App\Domain\Engagement\DTO\FetchedThread;
 use App\Domain\Social\Contracts\SocialProviderInterface;
 use App\Domain\Social\Contracts\SupportsDeletion;
+use App\Domain\Social\Contracts\SupportsInbox;
 use App\Domain\Social\Contracts\SupportsRecentPostLookup;
 use App\Domain\Social\DTO\CapabilitySet;
 use App\Domain\Social\DTO\DiscoveredAccount;
@@ -33,7 +35,7 @@ use Illuminate\Support\Str;
  *
  * Registered only in non-production environments.
  */
-final class FakeProvider implements SocialProviderInterface, SupportsDeletion, SupportsRecentPostLookup
+final class FakeProvider implements SocialProviderInterface, SupportsDeletion, SupportsInbox, SupportsRecentPostLookup
 {
     /** Queued outcomes, consumed one per publish() call. */
     private static array $scriptedOutcomes = [];
@@ -60,6 +62,16 @@ final class FakeProvider implements SocialProviderInterface, SupportsDeletion, S
     /** Whether refresh() returns a rolling refresh token, as networks differ. */
     private static bool $refreshRollsToken = true;
 
+    /** @var list<FetchedThread> */
+    private static array $threads = [];
+
+    /** @var array<string, string> */
+    private static array $sentReplies = [];
+
+    private static bool $replyWindowOpen = true;
+
+    private static ?ProviderErrorClass $replyFailure = null;
+
     public function key(): string
     {
         return 'fake';
@@ -76,6 +88,10 @@ final class FakeProvider implements SocialProviderInterface, SupportsDeletion, S
         self::$discoveryError = null;
         self::$refreshFailure = null;
         self::$refreshRollsToken = true;
+        self::$threads = [];
+        self::$sentReplies = [];
+        self::$replyWindowOpen = true;
+        self::$replyFailure = null;
     }
 
     /**
@@ -110,6 +126,39 @@ final class FakeProvider implements SocialProviderInterface, SupportsDeletion, S
     public static function willRefreshWithoutRefreshToken(): void
     {
         self::$refreshRollsToken = false;
+    }
+
+    /**
+     * What the next fetchThreads() returns.
+     *
+     * @param  list<FetchedThread>  $threads
+     */
+    public static function willReturnThreads(array $threads): void
+    {
+        self::$threads = $threads;
+    }
+
+    /**
+     * Close the reply window, as platforms do outside a response period.
+     *
+     * The point of canReplyTo(): a thread can be readable and unanswerable at
+     * the same time, and the UI must know that before somebody writes.
+     */
+    public static function willRefuseReplies(): void
+    {
+        self::$replyWindowOpen = false;
+    }
+
+    /** The next replyToThread() throws. */
+    public static function willFailReplyWith(ProviderErrorClass $class): void
+    {
+        self::$replyFailure = $class;
+    }
+
+    /** @return array<string, string> thread id => body */
+    public static function sentReplies(): array
+    {
+        return self::$sentReplies;
     }
 
     /** Discovery fails -- the grant is fine, the listing call is not. */
@@ -273,5 +322,31 @@ final class FakeProvider implements SocialProviderInterface, SupportsDeletion, S
         }
 
         return null;
+    }
+
+    // ---------------------------------------------------------------- inbox
+
+    public function fetchThreads(SocialAccount $account, ?string $cursor = null): Collection
+    {
+        return collect(self::$threads);
+    }
+
+    public function replyToThread(
+        SocialAccount $account,
+        string $externalThreadId,
+        string $body,
+    ): string {
+        if (self::$replyFailure !== null) {
+            throw new ProviderException(self::$replyFailure, 'Scripted reply failure');
+        }
+
+        self::$sentReplies[$externalThreadId] = $body;
+
+        return 'reply-'.Str::random(10);
+    }
+
+    public function canReplyTo(SocialAccount $account, string $externalThreadId): bool
+    {
+        return self::$replyWindowOpen;
     }
 }

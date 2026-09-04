@@ -7,6 +7,8 @@ use App\Domain\AI\Models\AutopilotSetting;
 use App\Domain\AI\Models\BrandBrain;
 use App\Domain\Analytics\Models\PostMetric;
 use App\Domain\Customers\Models\Customer;
+use App\Domain\Engagement\Models\InboxMessage;
+use App\Domain\Engagement\Models\InboxThread;
 use App\Domain\Identity\Models\CustomerPortalUser;
 use App\Domain\Identity\Models\User;
 use App\Domain\Media\Models\Media;
@@ -152,6 +154,8 @@ function provisionTenant(string $name = 'Test Agency'): array
 function tenantOwnedModels(): array
 {
     return [
+        InboxThread::class,
+        InboxMessage::class,
         PostMetric::class,
         Customer::class,
         CustomerPortalUser::class,
@@ -172,6 +176,40 @@ function tenantOwnedModels(): array
  * Written with the query builder rather than models because plans and
  * subscriptions have no Eloquent models yet -- those arrive in Step 9.
  */
+/**
+ * Switch a BOOLEAN entitlement on for a tenant.
+ *
+ * givePlanLimit() always writes value_type "limit", which resolves a boolean
+ * key to something the Entitlement never reads as enabled. Sold features like
+ * white labelling need this instead.
+ */
+function givePlanFlag(int $tenantId, string $key, bool $enabled = true): void
+{
+    DB::table('subscriptions')->where('tenant_id', $tenantId)->delete();
+
+    $planId = DB::table('plans')->insertGetId([
+        'ulid' => (string) Str::ulid(),
+        'name' => 'Flagged',
+        'slug' => 'flagged-'.Str::lower(Str::random(6)),
+        'is_public' => true, 'is_active' => true,
+        'trial_days' => 7, 'sort_order' => 0,
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+
+    DB::table('plan_features')->insert([
+        'plan_id' => $planId, 'key' => $key,
+        'value_type' => 'boolean', 'value' => $enabled ? 1 : 0,
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+
+    DB::table('subscriptions')->insert([
+        'ulid' => (string) Str::ulid(),
+        'tenant_id' => $tenantId, 'plan_id' => $planId,
+        'status' => 'active', 'gateway' => 'manual', 'quantity' => 1,
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+}
+
 function givePlanLimit(int $tenantId, string $key, int $value): void
 {
     // A tenant holds at most one non-terminal subscription, so replace rather
