@@ -10,13 +10,16 @@ use App\Domain\Media\Services\SignedMediaUrl;
 use App\Domain\Publishing\Enums\PostStatus;
 use App\Domain\Publishing\Enums\TargetStatus;
 use App\Domain\Publishing\Exceptions\CannotReschedule;
+use App\Domain\Publishing\Exceptions\PostNotEditable;
 use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostComment;
 use App\Domain\Publishing\Models\PostTarget;
 use App\Domain\Publishing\Services\ReschedulePostService;
+use App\Domain\Publishing\Services\UpdatePostService;
 use App\Domain\Publishing\Workflow\PostStatusMachine;
 use App\Domain\Social\Models\SocialAccount;
 use App\Http\Requests\Agency\StorePostRequest;
+use App\Http\Requests\Agency\UpdatePostRequest;
 use App\Support\TenantContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -107,17 +110,9 @@ final class PostController
             $post->created_by_user_id = $request->user()->getKey();
             $post->title = $request->input('title');
             $post->body = (string) $request->input('body');
-            /*
-             | Derived from what is attached, not assumed. Providers branch on
-             | this -- a video post and an image post are different API calls on
-             | every network -- so hardcoding 'text' would mislabel every post
-             | that carries media.
-             */
-            $post->content_type = match (true) {
-                $media->contains(fn ($item): bool => $item->isVideo()) => 'video',
-                $media->isNotEmpty() => 'image',
-                default => 'text',
-            };
+            // Derived from what is attached, not assumed. The editor derives
+            // it the same way, from the same method, so the two cannot drift.
+            $post->content_type = Post::deriveContentType($media);
             $post->status = PostStatus::Draft;
             $post->source = 'manual';
             $post->approval_required = $brand->requiresClientApproval();
@@ -227,6 +222,83 @@ final class PostController
         }
 
         return back()->with('status', 'Post updated.');
+    }
+
+    /**
+     * The edit screen, for a post that may still be edited.
+     *
+     * Redirects rather than 403s when the status forbids it: the user has
+     * every right to this post, and the answer is "not in this state", which
+     * is a different sentence.
+     */
+    public function edit(Request $request, Post $post): View|RedirectResponse
+    {
+        $request->user()->can('posts.update') || abort(403);
+        $this->assertReachable($request, $post);
+
+        if (! $post->status->isEditable()) {
+            return redirect()
+                ->route('agency.posts.show', $post)
+                ->with('error', PostNotEditable::status($post->status)->getMessage());
+        }
+
+        $post->load(['customer', 'targets', 'media']);
+
+        return view('agency.posts.edit', [
+            'title' => 'Edit post',
+            'post' => $post,
+            /*
+             | Scoped to THIS post's brand, not to every brand the user can
+             | see. The composer groups by brand because the brand is still
+             | being chosen; here it is settled, and offering another client's
+             | library would only be a way to make a mistake.
+             */
+            'media' => Media::query()
+                ->ready()
+                ->where('customer_id', $post->customer_id)
+                ->orderByDesc('id')
+                ->get(),
+            'accounts' => SocialAccount::query()
+                ->publishable()
+                ->where('customer_id', $post->customer_id)
+                ->orderBy('name')
+                ->get(),
+            'attachedMedia' => $post->media->modelKeys(),
+            'attachedAccounts' => $post->targets->pluck('social_account_id')->all(),
+        ]);
+    }
+
+    public function update(
+        UpdatePostRequest $request,
+        Post $post,
+        UpdatePostService $updater,
+    ): RedirectResponse {
+        $request->user()->can('posts.update') || abort(403);
+        $this->assertReachable($request, $post);
+
+        // Resolved against the POST's brand, which is settled and not
+        // submitted. Ids arrive from a form and the global scope cannot see
+        // intent -- without this a crafted payload could aim one client's post
+        // at another client's feed.
+        $brand = $post->customer;
+
+        try {
+            $updater->execute(
+                post: $post,
+                title: $request->input('title'),
+                body: (string) $request->input('body'),
+                scheduledAt: $request->input('scheduled_at'),
+                accounts: $this->resolveAccounts($request->input('accounts', []), $brand),
+                media: $this->resolveMedia($request->input('media', []), $brand),
+                actor: $request->user(),
+            );
+        } catch (PostNotEditable $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('agency.posts.show', $post)
+            ->with('status', 'Changes saved.');
     }
 
     /**

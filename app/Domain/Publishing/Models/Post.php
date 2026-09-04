@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Master content for one brand.
@@ -64,11 +65,13 @@ class Post extends Model
         return 'ulid';
     }
 
+    /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
+    /** @return BelongsTo<User, $this> */
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
@@ -100,6 +103,28 @@ class Post extends Model
         return $this->belongsToMany(Media::class, 'post_media')
             ->withPivot(['sort_order', 'role', 'post_target_id'])
             ->orderBy('post_media.sort_order');
+    }
+
+    /**
+     * What kind of post this is, from what is attached to it.
+     *
+     * Derived, never assumed. Providers branch on this -- a video post and an
+     * image post are different API calls on every network -- so a post that
+     * carries a video and calls itself text is a publish-time failure.
+     *
+     * Shared by the composer and the editor so the two cannot drift: a post
+     * created with an image and then edited to a video has to change type, and
+     * a second copy of this match would be the thing that forgot to.
+     *
+     * @param  Collection<int, Media>  $media
+     */
+    public static function deriveContentType(Collection $media): string
+    {
+        return match (true) {
+            $media->contains(fn (Media $item): bool => $item->isVideo()) => 'video',
+            $media->isNotEmpty() => 'image',
+            default => 'text',
+        };
     }
 
     /**

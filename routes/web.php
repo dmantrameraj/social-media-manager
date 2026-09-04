@@ -103,6 +103,15 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
         ->name('posts.import.template');
     Route::post('content', [PostController::class, 'store'])->name('posts.store');
     Route::get('content/{post}', [PostController::class, 'show'])->name('posts.show');
+
+    /*
+     | Editing. Only Idea, Draft and Rejected are editable -- PostStatus::
+     | isEditable() decides, and this is its first caller since it was written.
+     | Changing the words of a post a client already approved would make the
+     | approval a statement about text that no longer exists.
+     */
+    Route::get('content/{post}/edit', [PostController::class, 'edit'])->name('posts.edit');
+    Route::put('content/{post}', [PostController::class, 'update'])->name('posts.update');
     Route::post('content/{post}/transition', [PostController::class, 'transition'])->name('posts.transition');
 
     /*

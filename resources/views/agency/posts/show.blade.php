@@ -219,6 +219,23 @@
                 @if ($post->source === 'ai')
                     <p class="mt-2 text-xs text-indigo-700">Drafted by AI. Review before approving.</p>
                 @endif
+
+                @if ($post->source === 'import')
+                    <p class="mt-2 text-xs text-slate-600">Imported from a file.</p>
+                @endif
+
+                {{--
+                  Offered only while the post is still editable, and only to
+                  somebody who may change it. The screen re-checks both.
+                --}}
+                @can('posts.update')
+                    @if ($post->status->isEditable())
+                        <a href="{{ route('agency.posts.edit', $post) }}"
+                           class="mt-3 inline-block rounded-lg border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
+                            Edit post
+                        </a>
+                    @endif
+                @endcan
             </div>
 
             @if ($allowedTransitions !== [])
