@@ -8,6 +8,7 @@ use App\Domain\Customers\Models\Customer;
 use App\Domain\Social\Exceptions\OAuthStateInvalid;
 use App\Domain\Social\OAuth\OAuthStateService;
 use App\Domain\Social\ProviderRegistry;
+use App\Domain\Social\Services\ResolveAppCredentialService;
 use App\Domain\Social\Services\StoreSocialConnectionService;
 use App\Http\Controllers\Controller;
 use App\Support\TenantContext;
@@ -37,6 +38,7 @@ final class OAuthController extends Controller
         private readonly ProviderRegistry $providers,
         private readonly OAuthStateService $states,
         private readonly StoreSocialConnectionService $connections,
+        private readonly ResolveAppCredentialService $credentials,
     ) {}
 
     /**
@@ -67,12 +69,24 @@ final class OAuthController extends Controller
 
         $request->user()->can('view', $brand) || abort(403);
 
+        /*
+         | The agency's own developer app for this network, if they have one.
+         |
+         | Null means the platform's app, which is the right answer for an
+         | agency that has not supplied one -- and the reason a new tenant can
+         | connect anything at all. The id is written onto the state row so the
+         | callback exchanges the code against the SAME app that issued it,
+         | even if the agency changes their credentials mid-flow.
+         */
+        $credential = $this->credentials->for($tenant->getKey(), $provider);
+
         ['context' => $oauth] = $this->states->issue(
             tenantId: $tenant->getKey(),
             userId: $request->user()->getKey(),
             providerKey: $provider,
             scopes: $this->requestedScopes($provider),
             customerId: $brand->getKey(),
+            credentialId: $credential?->getKey(),
             redirectTo: route('agency.social.index', absolute: false),
             usePkce: (bool) config("social.providers.{$provider}.pkce", false),
         );

@@ -78,6 +78,11 @@ Facebook → Instagram → *stabilise* → LinkedIn → X → YouTube.
       `social:refresh-tokens`, verified against the fake provider
 - [x] Reconnect updates the existing connection and preserves account assignments
 - [x] Capabilities resolve correctly from account type plus granted scopes
+- [x] **Per-tenant credential management** — an agency stores its own developer app per
+      network, and the OAuth grant runs through it. The credential id is written onto the
+      state row and read back at callback, so a code is exchanged against the app that
+      issued it. No stored value is ever rendered back, and audit entries record which
+      fields changed rather than what they changed to.
 - [ ] `/docs/providers/{provider}.md` exists per provider, dated — nothing to document yet
 - [ ] `PHASE-2-COMPLETION.md` written — `PHASE-2-3-PROGRESS.md` stands in until a real
       provider closes the gate

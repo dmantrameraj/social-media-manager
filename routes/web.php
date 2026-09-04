@@ -31,6 +31,7 @@ use App\Http\Controllers\Agency\ReportShareController;
 use App\Http\Controllers\Agency\SessionController;
 use App\Http\Controllers\Agency\SettingsController;
 use App\Http\Controllers\Agency\SocialAccountController;
+use App\Http\Controllers\Agency\SocialCredentialController;
 use App\Http\Controllers\Agency\SuspendedController;
 use App\Http\Controllers\Agency\TeamController;
 use App\Http\Controllers\InvitationController;
@@ -214,6 +215,25 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
      | tenant scope rather than being authorised later.
      */
     Route::get('social', [SocialAccountController::class, 'index'])->name('social.index');
+
+    /*
+     | The agency's own developer apps, so their client connections run on
+     | their own API quota rather than the platform's. Declared before
+     | social/{account} routes so "credentials" is not read as an account id.
+     |
+     | Owner only: social_credentials.manage is in Agency Admin's `except`
+     | list, deliberately. Nothing here ever renders a stored value.
+     */
+    Route::get('social/credentials', [SocialCredentialController::class, 'index'])
+        ->name('social.credentials');
+    Route::post('social/credentials', [SocialCredentialController::class, 'store'])
+        ->name('social.credentials.store');
+    Route::put('social/credentials/{credential}', [SocialCredentialController::class, 'update'])
+        ->name('social.credentials.update');
+    Route::put('social/credentials/{credential}/toggle', [SocialCredentialController::class, 'toggle'])
+        ->name('social.credentials.toggle');
+    Route::delete('social/credentials/{credential}', [SocialCredentialController::class, 'destroy'])
+        ->name('social.credentials.destroy');
 
     Route::get('social/connect/{provider}', [OAuthController::class, 'redirect'])
         ->name('social.connect');

@@ -19,6 +19,7 @@
         ['route' => 'agency.inbox.index', 'label' => 'Inbox', 'permission' => 'inbox.view'],
         ['route' => 'agency.analytics.index', 'label' => 'Analytics', 'permission' => 'analytics.view'],
         ['route' => 'agency.social.index', 'label' => 'Accounts', 'permission' => 'social_accounts.view'],
+        ['route' => 'agency.social.credentials', 'label' => 'Developer apps', 'permission' => 'social_credentials.manage'],
         ['route' => 'agency.team.index', 'label' => 'Team', 'permission' => 'team.view'],
         ['route' => 'agency.billing', 'label' => 'Billing', 'permission' => 'billing.view'],
         // Workspace-level and permission-gated, so it sits here rather than in

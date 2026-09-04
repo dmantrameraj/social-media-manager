@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Social\OAuth;
 
 use App\Domain\Social\Exceptions\OAuthStateInvalid;
+use App\Domain\Social\Models\SocialAppCredential;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -53,6 +54,8 @@ final class OAuthStateService
             'created_at' => now(),
         ]);
 
+        $credential = $this->credentialFor($credentialId);
+
         return [
             'state' => $state,
             'context' => new OAuthContext(
@@ -63,6 +66,8 @@ final class OAuthStateService
                 state: $state,
                 scopes: $scopes,
                 codeVerifier: $verifier,
+                clientId: $credential?->client_id,
+                clientSecret: $credential?->client_secret,
                 customerId: $customerId,
             ),
         ];
@@ -109,6 +114,17 @@ final class OAuthStateService
             throw new OAuthStateInvalid('This authorisation link was issued to a different user.');
         }
 
+        $credential = $this->credentialFor(
+            $row->social_app_credential_id !== null ? (int) $row->social_app_credential_id : null,
+        );
+
+        /*
+         | The SAME developer app that issued the grant, rehydrated for the
+         | token exchange. A code minted against one app cannot be exchanged
+         | against another, so reading the id back off the state row -- rather
+         | than resolving the tenant's current app again -- is what makes the
+         | callback survive an agency changing their credentials mid-flow.
+         */
         return new OAuthContext(
             tenantId: (int) $row->tenant_id,
             userId: (int) $row->user_id,
@@ -116,8 +132,35 @@ final class OAuthStateService
             redirectUri: $this->redirectUri($providerKey),
             state: $state,
             codeVerifier: $row->code_verifier !== null ? decrypt($row->code_verifier) : null,
+            clientId: $credential?->client_id,
+            clientSecret: $credential?->client_secret,
             customerId: $row->customer_id !== null ? (int) $row->customer_id : null,
         );
+    }
+
+    /**
+     * The client id and secret for a stored credential, if there is one.
+     *
+     * withoutGlobalScopes: this runs inside an OAuth callback, which arrives
+     * before any tenant is resolved. The id came from the state row we just
+     * verified against its own tenant, so the row is already proven -- but the
+     * scope would hide it anyway and the connection would silently fall back
+     * to the platform app.
+     *
+     * Null is the ordinary case: the agency has not supplied their own app,
+     * and the adapter falls back to the platform's configured credentials.
+     */
+    private function credentialFor(?int $credentialId): ?SocialAppCredential
+    {
+        if ($credentialId === null) {
+            return null;
+        }
+
+        $credential = SocialAppCredential::query()
+            ->withoutGlobalScopes()
+            ->find($credentialId);
+
+        return $credential !== null && $credential->isUsable() ? $credential : null;
     }
 
     public function pruneExpired(): int
