@@ -469,11 +469,17 @@ built, tested, and one wire short of reachable — and a checklist counts what w
 which is exactly the thing that pattern hides. Take an item marked done as a claim about
 code that exists, not a claim that a person can reach it.
 
-Smaller, and honestly optional for the gate: tenant settings and timezone management (no
-route exists), `EntitlementExceeded` rendered with an upgrade CTA (each controller
-currently catches it and flashes the message — adequate, not what Step 8 originally
-promised), and the form/table/modal component library (partials cover today's screens;
-this was scoped larger than what got built).
+Smaller, and honestly optional for the gate: `EntitlementExceeded` rendered with an
+upgrade CTA (each controller currently catches it and flashes the message with
+`upgrade_prompt` — adequate, not what Step 8 originally promised), and the
+form/table/modal component library (partials cover today's screens; this was scoped
+larger than what got built).
+
+Tenant settings and timezone management used to be listed here as having no route. That
+is stale: `agency.settings.edit` and `agency.settings.update` both exist and
+`SettingsController` handles name and timezone. Corrected rather than left, because a
+checklist that under-claims teaches people to stop trusting it just as fast as one that
+over-claims.
 
 CI is now wired but **has never run on a runner** — there is no git remote. The workflow
 is a GitHub Actions assumption; its MariaDB image tag and action versions want confirming
