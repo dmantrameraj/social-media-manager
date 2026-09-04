@@ -8,6 +8,7 @@ use App\Domain\Social\Contracts\SocialProviderInterface;
 use App\Domain\Social\Contracts\SupportsDeletion;
 use App\Domain\Social\Contracts\SupportsRecentPostLookup;
 use App\Domain\Social\DTO\CapabilitySet;
+use App\Domain\Social\DTO\DiscoveredAccount;
 use App\Domain\Social\DTO\PublishPayload;
 use App\Domain\Social\DTO\PublishResult;
 use App\Domain\Social\DTO\TokenSet;
@@ -42,6 +43,17 @@ final class FakeProvider implements SocialProviderInterface, SupportsDeletion, S
 
     private static int $publishCallCount = 0;
 
+    /**
+     * What discoverAccounts() returns. Empty by default: a grant that
+     * administers nothing publishable is a real outcome, not a broken fake.
+     *
+     * @var list<DiscoveredAccount>
+     */
+    private static array $discoverable = [];
+
+    /** Set when discovery should fail rather than return a list. */
+    private static ?string $discoveryError = null;
+
     public function key(): string
     {
         return 'fake';
@@ -54,6 +66,25 @@ final class FakeProvider implements SocialProviderInterface, SupportsDeletion, S
         self::$scriptedOutcomes = [];
         self::$published = [];
         self::$publishCallCount = 0;
+        self::$discoverable = [];
+        self::$discoveryError = null;
+    }
+
+    /**
+     * What the next discoverAccounts() returns.
+     *
+     * @param  list<DiscoveredAccount>  $accounts
+     */
+    public static function willDiscover(array $accounts): void
+    {
+        self::$discoverable = $accounts;
+        self::$discoveryError = null;
+    }
+
+    /** Discovery fails -- the grant is fine, the listing call is not. */
+    public static function willFailDiscovery(string $message = 'Discovery unavailable'): void
+    {
+        self::$discoveryError = $message;
     }
 
     /** Next publish() throws this. */
@@ -143,7 +174,14 @@ final class FakeProvider implements SocialProviderInterface, SupportsDeletion, S
 
     public function discoverAccounts(SocialConnection $connection): Collection
     {
-        return collect();
+        if (self::$discoveryError !== null) {
+            throw new ProviderException(
+                ProviderErrorClass::Network,
+                self::$discoveryError,
+            );
+        }
+
+        return collect(self::$discoverable);
     }
 
     public function validate(PublishPayload $payload, SocialAccount $account): ValidationResult

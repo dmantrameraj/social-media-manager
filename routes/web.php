@@ -18,9 +18,11 @@ use App\Http\Controllers\Agency\MediaController;
 use App\Http\Controllers\Agency\MediaFileController;
 use App\Http\Controllers\Agency\NotificationController;
 use App\Http\Controllers\Agency\NotificationSettingsController;
+use App\Http\Controllers\Agency\OAuthController;
 use App\Http\Controllers\Agency\PostController;
 use App\Http\Controllers\Agency\SessionController;
 use App\Http\Controllers\Agency\SettingsController;
+use App\Http\Controllers\Agency\SocialAccountController;
 use App\Http\Controllers\Agency\SuspendedController;
 use App\Http\Controllers\Agency\TeamController;
 use App\Http\Controllers\InvitationController;
@@ -114,6 +116,30 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
         ->name('media.file');
 
     /*
+     | Connecting social accounts. OAuthStateService, the provider contract and
+     | every adapter capability existed with no route to reach them, so the only
+     | way to get a publishable destination was to seed one into the database.
+     |
+     | The two legs are deliberately different shapes. Connecting is a GET that
+     | leaves the site; choosing destinations is a POST that writes rows, and
+     | the connection is bound by id so another agency's grant 404s on the
+     | tenant scope rather than being authorised later.
+     */
+    Route::get('social', [SocialAccountController::class, 'index'])->name('social.index');
+
+    Route::get('social/connect/{provider}', [OAuthController::class, 'redirect'])
+        ->name('social.connect');
+
+    Route::get('social/connections/{connection}', [SocialAccountController::class, 'choose'])
+        ->name('social.choose');
+
+    Route::post('social/connections/{connection}', [SocialAccountController::class, 'store'])
+        ->name('social.store');
+
+    Route::delete('social/{account}', [SocialAccountController::class, 'destroy'])
+        ->name('social.destroy');
+
+    /*
      | The signed-in user's own devices. sessions.guard was added for this in
      | the first migration and stayed null until a guard-aware handler wrote it.
      */
@@ -156,6 +182,26 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
  | someone out of it turns a recoverable lapse into a cancellation.
  | See docs/03-TENANCY.md section 9.
  */
+/*
+| The OAuth callback, and the one route whose PATH is not ours to choose.
+|
+| config('social.oauth.redirect_path') is what OAuthStateService sends to the
+| provider as redirect_uri, and providers exact-match it against what was
+| registered in their developer console. Mounting this under the /app prefix
+| with the rest of the surface would send every provider to a 404.
+|
+| Still behind the full agency stack. The state is bound to a user and consumed
+| once, but authentication is what makes that binding checkable at all -- and a
+| callback URL that answers to anonymous requests is a thing worth not having.
+|
+| The session survives the round trip because SESSION_SAME_SITE is lax, which
+| sends cookies on a top-level GET navigation like this one. Setting it to
+| strict would sign the user out on the way back.
+*/
+Route::middleware('agency')
+    ->get('oauth/{provider}/callback', [OAuthController::class, 'callback'])
+    ->name('agency.social.callback');
+
 Route::middleware(['auth:web', 'verified', 'tenant'])
     ->prefix('app')
     ->name('agency.')

@@ -14,6 +14,7 @@
         ['route' => 'agency.calendar', 'label' => 'Calendar', 'permission' => 'posts.view'],
         ['route' => 'agency.posts.create', 'label' => 'Create post', 'permission' => 'posts.create'],
         ['route' => 'agency.media.index', 'label' => 'Media', 'permission' => 'media.view'],
+        ['route' => 'agency.social.index', 'label' => 'Accounts', 'permission' => 'social_accounts.view'],
         ['route' => 'agency.team.index', 'label' => 'Team', 'permission' => 'team.view'],
         ['route' => 'agency.billing', 'label' => 'Billing', 'permission' => 'billing.view'],
         // Workspace-level and permission-gated, so it sits here rather than in

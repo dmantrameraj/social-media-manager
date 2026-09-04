@@ -449,13 +449,25 @@ One item, and it is not ours to close:
 2. ~~Purge warning emails at 30 and 7 days~~ — **done**
 3. ~~Session listing and revocation~~ — **done**; `GuardAwareSessionHandler` plus the
    "Signed-in devices" screen
-4. **Invoice numbering**, `ProcessRazorpayWebhook`, checkout initiation and
+4. ~~Connecting a social account~~ — **done**; `OAuthController`, the destination
+   picker and `StoreSocialConnectionService`
+5. **Invoice numbering**, `ProcessRazorpayWebhook`, checkout initiation and
    `billing:reconcile-subscriptions` — **blocked** pending verification against live
    Razorpay documentation
 
-Every self-contained gap that blocks the exit gate is closed. What remains there needs
-live provider documentation, which is not something to guess at — see §64 of the master
-prompt.
+What remains needs live provider documentation, which is not something to guess at —
+see §64 of the master prompt.
+
+A caution about the sentence that used to sit here. It read "every self-contained gap
+that blocks the exit gate is closed", and it was wrong when written: an agency could not
+connect a social account at all, because `OAuthStateService`, the provider contract and
+every adapter capability existed with no route or controller reaching them. A row had to
+be inserted by hand before anything else in the product worked.
+
+That is the eleventh time this repository has produced the same shape — a mechanism
+built, tested, and one wire short of reachable — and a checklist counts what was BUILT,
+which is exactly the thing that pattern hides. Take an item marked done as a claim about
+code that exists, not a claim that a person can reach it.
 
 Smaller, and honestly optional for the gate: tenant settings and timezone management (no
 route exists), `EntitlementExceeded` rendered with an upgrade CTA (each controller
