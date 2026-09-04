@@ -23,6 +23,27 @@ final class MonthlyPlanFeature implements AiFeatureInterface
         return 'monthly_plan';
     }
 
+    public function label(): string
+    {
+        return 'Monthly plan';
+    }
+
+    public function description(): string
+    {
+        return 'A dated content plan for the month ahead.';
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'start_date', 'label' => 'Start date', 'type' => 'date'],
+            ['name' => 'days', 'label' => 'Days to cover', 'type' => 'number', 'min' => 1, 'max' => 90],
+            ['name' => 'posts_per_week', 'label' => 'Posts per week', 'type' => 'number', 'min' => 1, 'max' => 50],
+            ['name' => 'platforms', 'label' => 'Platforms', 'type' => 'text', 'help' => 'Comma separated.'],
+            ['name' => 'notes', 'label' => 'Notes', 'type' => 'textarea', 'help' => 'Anything the plan should take into account.'],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         return [

@@ -21,6 +21,24 @@ final class ReelScriptFeature implements AiFeatureInterface
         return 'reel_script';
     }
 
+    public function label(): string
+    {
+        return 'Reel script';
+    }
+
+    public function description(): string
+    {
+        return 'A short-video script with beats and timings.';
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'topic', 'label' => 'Topic', 'type' => 'text'],
+            ['name' => 'duration_seconds', 'label' => 'Duration in seconds', 'type' => 'number', 'min' => 5, 'max' => 180],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         return [

@@ -22,6 +22,24 @@ final class HashtagsFeature implements AiFeatureInterface
         return 'hashtags';
     }
 
+    public function label(): string
+    {
+        return 'Hashtags';
+    }
+
+    public function description(): string
+    {
+        return "A set of hashtags for a topic, in the brand's language.";
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'topic', 'label' => 'Topic', 'type' => 'text'],
+            ['name' => 'count', 'label' => 'How many', 'type' => 'number', 'min' => 1, 'max' => 60],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         // Deliberately narrow -- competitor analysis and CTAs would cost

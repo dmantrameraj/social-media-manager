@@ -18,6 +18,25 @@ final class CaptionFeature implements AiFeatureInterface
         return 'caption';
     }
 
+    public function label(): string
+    {
+        return 'Caption';
+    }
+
+    public function description(): string
+    {
+        return 'One social caption grounded in the brand profile.';
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'topic', 'label' => 'Topic', 'type' => 'text', 'help' => 'What the caption is about. Left blank, it writes something generally suitable for the brand.'],
+            ['name' => 'platform', 'label' => 'Platform', 'type' => 'text', 'help' => 'Where it will be posted, so the wording suits it.'],
+            ['name' => 'character_limit', 'label' => 'Character limit', 'type' => 'number', 'help' => "Usually taken from the destination's own limit."],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         return [

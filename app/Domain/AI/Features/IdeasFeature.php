@@ -18,6 +18,24 @@ final class IdeasFeature implements AiFeatureInterface
         return 'ideas';
     }
 
+    public function label(): string
+    {
+        return 'Content ideas';
+    }
+
+    public function description(): string
+    {
+        return 'Post ideas for a theme, grounded in the brand profile.';
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'theme', 'label' => 'Theme', 'type' => 'text', 'help' => 'A season, campaign or subject to generate around.'],
+            ['name' => 'count', 'label' => 'How many', 'type' => 'number', 'min' => 1, 'max' => 50],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         return [

@@ -20,6 +20,24 @@ final class TranslateFeature implements AiFeatureInterface
         return 'translate';
     }
 
+    public function label(): string
+    {
+        return 'Translate';
+    }
+
+    public function description(): string
+    {
+        return "Translates copy, keeping the brand's voice.";
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'text', 'label' => 'Text', 'type' => 'textarea', 'required' => true],
+            ['name' => 'target_language', 'label' => 'Target language', 'type' => 'text', 'required' => true],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         return ['brand_tone', 'languages', 'primary_language'];

@@ -25,6 +25,24 @@ final class ToneFeature implements AiFeatureInterface
         return 'tone';
     }
 
+    public function label(): string
+    {
+        return 'Change tone';
+    }
+
+    public function description(): string
+    {
+        return 'Rewrites copy in a different tone.';
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'text', 'label' => 'Text', 'type' => 'textarea', 'required' => true],
+            ['name' => 'tone', 'label' => 'Tone', 'type' => 'text', 'help' => 'Warmer, more formal, playful.'],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         return ['brand_tone', 'brand_voice_notes', 'primary_language'];

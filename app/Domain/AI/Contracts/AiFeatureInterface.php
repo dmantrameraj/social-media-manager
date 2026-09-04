@@ -18,6 +18,37 @@ interface AiFeatureInterface
     /** Matches a key in config('ai.costs'). */
     public function key(): string;
 
+    /** Human name for the picker. */
+    public function label(): string;
+
+    /** One line saying what this produces, shown under the name. */
+    public function description(): string;
+
+    /**
+     * The inputs this feature reads, declared by the feature itself.
+     *
+     * Declared here rather than described in config so there is one source of
+     * truth. A form built from a separate list drifts the moment a feature
+     * starts reading a key nobody added to it, and the symptom -- a field
+     * silently ignored -- looks like a model problem rather than a wiring one.
+     *
+     * `type` is a form hint only: text, textarea, number, date or select.
+     * `options` applies to select. Everything is optional unless `required`,
+     * because every feature already defaults a missing key.
+     *
+     * @return list<array{
+     *     name: string,
+     *     label: string,
+     *     type: string,
+     *     required?: bool,
+     *     help?: string,
+     *     options?: array<string, string>,
+     *     max?: int,
+     *     min?: int
+     * }>
+     */
+    public function inputFields(): array;
+
     /**
      * Brand Brain fields this feature needs.
      *

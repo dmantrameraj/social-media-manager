@@ -19,6 +19,23 @@ final class YoutubeDescriptionFeature implements AiFeatureInterface
         return 'youtube_description';
     }
 
+    public function label(): string
+    {
+        return 'YouTube description';
+    }
+
+    public function description(): string
+    {
+        return 'A full video description.';
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'topic', 'label' => 'Topic', 'type' => 'text'],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         return [

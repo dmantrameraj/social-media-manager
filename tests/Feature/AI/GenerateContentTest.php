@@ -145,6 +145,24 @@ it('refuses to run when the tenant cannot afford it', function (): void {
             return 'monthly_plan';   // costs 25
         }
 
+        // Presentation only -- this stand-in never reaches the picker, but the
+        // interface obliges every implementer, which is the point of putting
+        // the declaration on the feature rather than in a list beside it.
+        public function label(): string
+        {
+            return 'Expensive';
+        }
+
+        public function description(): string
+        {
+            return 'A stand-in used to prove the credit guard.';
+        }
+
+        public function inputFields(): array
+        {
+            return [];
+        }
+
         public function requiredBrainSections(): array
         {
             return ['business_description'];

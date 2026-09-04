@@ -20,6 +20,24 @@ final class RewriteFeature implements AiFeatureInterface
         return 'rewrite';
     }
 
+    public function label(): string
+    {
+        return 'Rewrite';
+    }
+
+    public function description(): string
+    {
+        return 'Rewrites existing copy toward a goal.';
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'text', 'label' => 'Text', 'type' => 'textarea', 'required' => true],
+            ['name' => 'goal', 'label' => 'Goal', 'type' => 'text', 'help' => 'Shorter, clearer, more persuasive.'],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         return ['brand_tone', 'brand_voice_notes', 'preferred_keywords', 'primary_language'];

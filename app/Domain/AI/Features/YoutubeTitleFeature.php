@@ -21,6 +21,24 @@ final class YoutubeTitleFeature implements AiFeatureInterface
         return 'youtube_title';
     }
 
+    public function label(): string
+    {
+        return 'YouTube titles';
+    }
+
+    public function description(): string
+    {
+        return 'Title options for a video.';
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'topic', 'label' => 'Topic', 'type' => 'text'],
+            ['name' => 'count', 'label' => 'How many', 'type' => 'number', 'min' => 1, 'max' => 20],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         return ['business_description', 'target_audience', 'preferred_keywords', 'primary_language'];

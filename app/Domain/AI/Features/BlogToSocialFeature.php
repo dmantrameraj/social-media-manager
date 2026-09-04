@@ -28,6 +28,24 @@ final class BlogToSocialFeature implements AiFeatureInterface
         return 'blog_to_social';
     }
 
+    public function label(): string
+    {
+        return 'Blog to social';
+    }
+
+    public function description(): string
+    {
+        return 'Turns an article into several posts.';
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'article', 'label' => 'Article', 'type' => 'textarea', 'required' => true],
+            ['name' => 'count', 'label' => 'How many posts', 'type' => 'number', 'min' => 1, 'max' => 20],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         return ['brand_tone', 'brand_voice_notes', 'target_audience', 'ctas', 'primary_language'];

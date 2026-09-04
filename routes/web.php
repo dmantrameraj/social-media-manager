@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\FailedJobController;
 use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\PlanController as AdminPlanController;
 use App\Http\Controllers\Admin\TenantController as AdminTenantController;
+use App\Http\Controllers\Agency\AiController;
 use App\Http\Controllers\Agency\BillingController;
 use App\Http\Controllers\Agency\BrandBrainController;
 use App\Http\Controllers\Agency\BrandController;
@@ -114,6 +115,16 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
     Route::get('media/{media}/file', MediaFileController::class)
         ->middleware('signed')
         ->name('media.file');
+
+    /*
+     | The AI studio. Twelve features, the credit ledger, reservations and the
+     | Brand Brain context builder were all built and tested with no route
+     | reaching any of them, so `ai.use` governed nothing and a tenant's
+     | monthly credits could only be spent from a test.
+     */
+    Route::get('ai', [AiController::class, 'index'])->name('ai.index');
+    Route::get('ai/{feature}', [AiController::class, 'show'])->name('ai.show');
+    Route::post('ai/{feature}', [AiController::class, 'generate'])->name('ai.generate');
 
     /*
      | Connecting social accounts. OAuthStateService, the provider contract and

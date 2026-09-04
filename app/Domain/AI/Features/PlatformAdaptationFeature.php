@@ -25,6 +25,25 @@ final class PlatformAdaptationFeature implements AiFeatureInterface
         return 'platform_adaptation';
     }
 
+    public function label(): string
+    {
+        return 'Adapt for a platform';
+    }
+
+    public function description(): string
+    {
+        return 'Reshapes one post for a different network.';
+    }
+
+    public function inputFields(): array
+    {
+        return [
+            ['name' => 'text', 'label' => 'Text', 'type' => 'textarea', 'required' => true],
+            ['name' => 'provider_key', 'label' => 'Network', 'type' => 'text'],
+            ['name' => 'account_type', 'label' => 'Account type', 'type' => 'text'],
+        ];
+    }
+
     public function requiredBrainSections(): array
     {
         return ['brand_tone', 'brand_voice_notes', 'preferred_keywords', 'ctas', 'primary_language'];
