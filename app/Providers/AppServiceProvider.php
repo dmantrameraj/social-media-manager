@@ -11,6 +11,8 @@ use App\Domain\AI\Providers\FakeAiProvider;
 use App\Domain\Audit\Listeners\RecordAuthenticationEvent;
 use App\Domain\Identity\Models\User;
 use App\Domain\Identity\Sessions\GuardAwareSessionHandler;
+use App\Domain\Platform\Contracts\DnsLookup;
+use App\Domain\Platform\Services\SystemDnsLookup;
 use App\Domain\Social\ProviderRegistry;
 use App\Domain\Social\Providers\Fake\FakeProvider;
 use App\Support\TenantContext;
@@ -38,6 +40,13 @@ class AppServiceProvider extends ServiceProvider
          | per call would hand callers an empty registry.
          */
         $this->app->singleton(ProviderRegistry::class);
+
+        /*
+         | Real DNS in production; tests bind a fake. A verification test that
+         | depends on live DNS fails on an aeroplane and passes for reasons
+         | nobody can reproduce.
+         */
+        $this->app->bind(DnsLookup::class, SystemDnsLookup::class);
     }
 
     public function boot(): void

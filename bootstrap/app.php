@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\EnsureTenantActive;
 use App\Http\Middleware\HandleImpersonation;
+use App\Http\Middleware\ResolvePortalHost;
 use App\Http\Middleware\ResolveTenant;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'tenant' => ResolveTenant::class,
+            'portal.host' => ResolvePortalHost::class,
             'tenant.active' => EnsureTenantActive::class,
             'super-admin' => EnsureSuperAdmin::class,
         ]);

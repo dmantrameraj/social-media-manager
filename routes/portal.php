@@ -24,7 +24,16 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::prefix('portal')->name('portal.')->group(function (): void {
+/*
+ | portal.host applies to the WHOLE portal, including the login page.
+ |
+ | That is the point of a custom domain: a client arriving at their agency's
+ | hostname should see that agency before signing in, not the platform's name
+ | followed by a rebrand once authenticated. It also refuses a portal user who
+ | belongs to a different tenant, so a verified domain narrows who can use it
+ | rather than opening a second door.
+ */
+Route::prefix('portal')->middleware('portal.host')->name('portal.')->group(function (): void {
 
     /*
      | Sign-in is outside the auth group, and `guest:customer` rather than

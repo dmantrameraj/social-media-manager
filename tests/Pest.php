@@ -13,6 +13,7 @@ use App\Domain\Identity\Models\CustomerPortalUser;
 use App\Domain\Identity\Models\User;
 use App\Domain\Media\Models\Media;
 use App\Domain\Media\Models\MediaFolder;
+use App\Domain\Platform\Models\Domain;
 use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostTarget;
 use App\Domain\Social\Models\SocialAccount;
@@ -154,6 +155,7 @@ function provisionTenant(string $name = 'Test Agency'): array
 function tenantOwnedModels(): array
 {
     return [
+        Domain::class,
         InboxThread::class,
         InboxMessage::class,
         PostMetric::class,

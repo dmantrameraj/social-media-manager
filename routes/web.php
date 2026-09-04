@@ -17,6 +17,7 @@ use App\Http\Controllers\Agency\BrandBrainController;
 use App\Http\Controllers\Agency\BrandController;
 use App\Http\Controllers\Agency\BrandingController;
 use App\Http\Controllers\Agency\DashboardController;
+use App\Http\Controllers\Agency\DomainController;
 use App\Http\Controllers\Agency\InboxController;
 use App\Http\Controllers\Agency\MediaController;
 use App\Http\Controllers\Agency\MediaFileController;
@@ -206,6 +207,19 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
         ->name('settings.branding');
     Route::put('settings/branding', [BrandingController::class, 'update'])
         ->name('settings.branding.update');
+
+    /*
+     | Custom portal domains. The `domains` table shipped in Phase 1 as a
+     | schema stub with no model, no routes and no host resolution.
+     */
+    Route::get('settings/domains', [DomainController::class, 'index'])
+        ->name('settings.domains');
+    Route::post('settings/domains', [DomainController::class, 'store'])
+        ->name('settings.domains.store');
+    Route::post('settings/domains/{domain}/verify', [DomainController::class, 'verify'])
+        ->name('settings.domains.verify');
+    Route::delete('settings/domains/{domain}', [DomainController::class, 'destroy'])
+        ->name('settings.domains.destroy');
 
     Route::get('team', [TeamController::class, 'index'])->name('team.index');
     Route::post('team/invite', [TeamController::class, 'invite'])->name('team.invite');
