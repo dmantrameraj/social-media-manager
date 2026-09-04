@@ -71,6 +71,21 @@ Schedule::command('publishing:dispatch-due')
  | Every ten minutes: a reservation stranded by a dead worker costs a tenant
  | real spending power, so it should not sit for an hour.
  */
+/*
+ | Renew grants before they expire.
+ |
+ | scopeNeedingRefresh(), the provider contract's refresh() and
+ | social.refresh_lead_time were all written and nothing ran them, so a token
+ | reached expiry and publishing simply began failing.
+ |
+ | Hourly, not per-minute: the lead time is a day, so a missed hour costs
+ | nothing, and sweeping every minute would ask providers the same question
+ | 1,440 times to get the same answer.
+ */
+Schedule::command('social:refresh-tokens')
+    ->hourly()
+    ->withoutOverlapping();
+
 Schedule::command('ai:sweep-reservations')
     ->everyTenMinutes()
     ->withoutOverlapping(5)

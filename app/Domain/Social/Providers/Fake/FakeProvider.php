@@ -54,6 +54,12 @@ final class FakeProvider implements SocialProviderInterface, SupportsDeletion, S
     /** Set when discovery should fail rather than return a list. */
     private static ?string $discoveryError = null;
 
+    /** Set when refresh() should fail rather than return a fresh token. */
+    private static ?ProviderErrorClass $refreshFailure = null;
+
+    /** Whether refresh() returns a rolling refresh token, as networks differ. */
+    private static bool $refreshRollsToken = true;
+
     public function key(): string
     {
         return 'fake';
@@ -68,6 +74,8 @@ final class FakeProvider implements SocialProviderInterface, SupportsDeletion, S
         self::$publishCallCount = 0;
         self::$discoverable = [];
         self::$discoveryError = null;
+        self::$refreshFailure = null;
+        self::$refreshRollsToken = true;
     }
 
     /**
@@ -79,6 +87,29 @@ final class FakeProvider implements SocialProviderInterface, SupportsDeletion, S
     {
         self::$discoverable = $accounts;
         self::$discoveryError = null;
+    }
+
+    /**
+     * The next refresh() throws.
+     *
+     * The error CLASS is what matters: AuthExpired and Permission mean a
+     * person has to re-authorise, and everything else is retried on the next
+     * tick. Scripting the class is scripting that decision.
+     */
+    public static function willFailRefreshWith(ProviderErrorClass $class): void
+    {
+        self::$refreshFailure = $class;
+    }
+
+    /**
+     * refresh() returns no new refresh token.
+     *
+     * Real behaviour on the networks that treat the refresh token as durable:
+     * the absence means "keep the one you have", not "you no longer have one".
+     */
+    public static function willRefreshWithoutRefreshToken(): void
+    {
+        self::$refreshRollsToken = false;
     }
 
     /** Discovery fails -- the grant is fine, the listing call is not. */
@@ -158,10 +189,17 @@ final class FakeProvider implements SocialProviderInterface, SupportsDeletion, S
 
     public function refresh(SocialConnection $connection): TokenSet
     {
+        if (self::$refreshFailure !== null) {
+            throw new ProviderException(
+                self::$refreshFailure,
+                'Scripted refresh failure',
+            );
+        }
+
         return new TokenSet(
             accessToken: 'fake-access-'.Str::random(16),
             externalUserId: $connection->external_user_id,
-            refreshToken: 'fake-refresh-'.Str::random(16),
+            refreshToken: self::$refreshRollsToken ? 'fake-refresh-'.Str::random(16) : null,
             expiresAt: now()->addHour(),
             grantedScopes: $connection->scopes ?? ['fake.publish'],
         );

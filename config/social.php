@@ -24,6 +24,10 @@ return [
 
     'refresh_lead_time' => (int) env('SOCIAL_REFRESH_LEAD_TIME', 86400),
 
+    // Most connections one social:refresh-tokens pass will renew. Bounded so a
+    // backlog cannot turn a single tick into an hour of provider calls.
+    'refresh_batch_size' => (int) env('SOCIAL_REFRESH_BATCH_SIZE', 100),
+
     'oauth' => [
         'state_ttl' => 600,
         // Redirect URIs are exact-matched from config. An arbitrary
