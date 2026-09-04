@@ -82,6 +82,21 @@ Schedule::command('publishing:dispatch-due')
  | nothing, and sweeping every minute would ask providers the same question
  | 1,440 times to get the same answer.
  */
+/*
+ | Collect analytics for recently published posts.
+ |
+ | SupportsAnalytics has carried the comment "Phase 5. Declared now so the
+ | capability model is complete" since Phase 2, with no implementer and no
+ | caller. This is the caller.
+ |
+ | Every six hours: engagement accumulates for days, so a post polled four
+ | times a day is tracked closely enough for any report anyone runs, and more
+ | often would spend rate limit re-reading numbers that have barely moved.
+ */
+Schedule::command('analytics:collect')
+    ->everySixHours()
+    ->withoutOverlapping();
+
 Schedule::command('social:refresh-tokens')
     ->hourly()
     ->withoutOverlapping();

@@ -15,6 +15,7 @@
         ['route' => 'agency.posts.create', 'label' => 'Create post', 'permission' => 'posts.create'],
         ['route' => 'agency.media.index', 'label' => 'Media', 'permission' => 'media.view'],
         ['route' => 'agency.ai.index', 'label' => 'AI studio', 'permission' => 'ai.use'],
+        ['route' => 'agency.analytics.index', 'label' => 'Analytics', 'permission' => 'analytics.view'],
         ['route' => 'agency.social.index', 'label' => 'Accounts', 'permission' => 'social_accounts.view'],
         ['route' => 'agency.team.index', 'label' => 'Team', 'permission' => 'team.view'],
         ['route' => 'agency.billing', 'label' => 'Billing', 'permission' => 'billing.view'],

@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\Admin\PlanController as AdminPlanController;
 use App\Http\Controllers\Admin\TenantController as AdminTenantController;
 use App\Http\Controllers\Agency\AiController;
+use App\Http\Controllers\Agency\AnalyticsController;
 use App\Http\Controllers\Agency\BillingController;
 use App\Http\Controllers\Agency\BrandBrainController;
 use App\Http\Controllers\Agency\BrandController;
@@ -131,6 +132,13 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
      | reaching any of them, so `ai.use` governed nothing and a tenant's
      | monthly credits could only be spent from a test.
      */
+    /*
+     | What the work achieved. `analytics.view` has been in the permission
+     | catalogue since Step 5, and the Analyst role has existed to hold it,
+     | governing nothing: no table, no collection, no screen.
+     */
+    Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+
     Route::get('ai', [AiController::class, 'index'])->name('ai.index');
     Route::get('ai/{feature}', [AiController::class, 'show'])->name('ai.show');
     Route::post('ai/{feature}', [AiController::class, 'generate'])->name('ai.generate');
