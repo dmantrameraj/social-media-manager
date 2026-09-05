@@ -87,7 +87,15 @@
             {{-- Said plainly, because a stale link is confusing rather than alarming. --}}
             This link stops working on {{ $share->expires_at->toFormattedDateString() }}.
         </p>
-        <p class="mt-1">Prepared by {{ $branding->appName() }}.</p>
+        <p class="mt-1">
+            Prepared by {{ $branding->appName() }}.
+            {{-- The agency the client should reply to, not the platform. --}}
+            @if ($branding->supportEmail() !== '')
+                Questions go to
+                <a href="mailto:{{ $branding->supportEmail() }}"
+                   style="color: {{ $branding->secondaryColor() }}">{{ $branding->supportEmail() }}</a>.
+            @endif
+        </p>
     </footer>
 </div>
 </body>

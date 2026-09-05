@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Agency;
 
 use App\Domain\Customers\Models\Customer;
 use App\Domain\Engagement\Enums\InboxStatus;
+use App\Domain\Engagement\Models\InboxMessage;
 use App\Domain\Engagement\Models\InboxThread;
 use App\Domain\Engagement\Services\ReplyToThreadService;
 use App\Domain\Identity\Models\User;
@@ -42,6 +43,7 @@ final class InboxController extends Controller
             'status' => ['nullable', 'string', 'in:open,pending,closed'],
             'brand' => ['nullable', 'integer'],
             'mine' => ['nullable', 'boolean'],
+            'unsent' => ['nullable', 'boolean'],
         ]);
 
         $brands = $this->visibleBrands($request);
@@ -56,10 +58,40 @@ final class InboxController extends Controller
             ->whereIn('customer_id', $brands->modelKeys())
             ->orderByDesc('last_message_at');
 
+        /*
+         | Threads holding a reply that never reached the network.
+         |
+         | A failed reply was already marked as such and shown inside its own
+         | thread -- but only there, so the only way to find one was to open
+         | the thread you had no reason to open. An agency believes it answered
+         | a customer it did not answer, which is worse than never having
+         | replied: nobody is waiting for a reply they think was sent.
+         |
+         | Counted across every thread the person can reach, before the status
+         | filter, because a failed reply on a thread somebody has since closed
+         | is exactly the one that gets lost.
+         */
+        // A subquery off InboxMessage rather than a whereHas closure, so the
+        // scope stays the single definition of "undelivered" and the builder
+        // it is called on is the one that actually knows the scope.
+        $undeliveredThreadIds = InboxMessage::query()
+            ->undelivered()
+            ->select('inbox_thread_id');
+
+        $unsent = (clone $query)->whereIn('id', $undeliveredThreadIds)->count();
+
+        if (! empty($validated['unsent'])) {
+            $query->whereIn('id', $undeliveredThreadIds);
+        }
+
         // Defaults to what still wants attention, which is what an inbox is
         // for. Everything else is a deliberate choice.
         $status = $validated['status'] ?? InboxStatus::Open->value;
-        $query->where('status', $status);
+
+        // The unsent view ignores status deliberately -- see above.
+        if (empty($validated['unsent'])) {
+            $query->where('status', $status);
+        }
 
         if (isset($validated['brand'])
             && $brands->contains(fn ($b): bool => $b->getKey() === (int) $validated['brand'])) {
@@ -78,6 +110,8 @@ final class InboxController extends Controller
             'statuses' => InboxStatus::cases(),
             'selectedBrand' => $validated['brand'] ?? null,
             'mine' => (bool) ($validated['mine'] ?? false),
+            'unsent' => (bool) ($validated['unsent'] ?? false),
+            'unsentCount' => $unsent,
         ]);
     }
 

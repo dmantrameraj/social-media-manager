@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Billing\Entitlements\EntitlementResolver;
+use App\Domain\Identity\Models\CustomerPortalUser;
 use App\Domain\Identity\Models\User;
 use App\Domain\Platform\Models\BrandingSetting;
 use App\Domain\Platform\Services\BrandingResolver;
@@ -212,4 +213,62 @@ it('never shows one agency branding to another', function (): void {
     actingForTenant($rival);
 
     expect(app(BrandingResolver::class)->appName())->toBe(config('branding.app_name'));
+});
+
+// ------------------------------------------- the fields nothing used to read
+
+it('gives a client the agency support address, not the platform', function (): void {
+    /*
+     | support_email and secondary_color could be entered on the branding
+     | screen, were validated, and were saved -- and no template read either.
+     | The portal told a client "questions about your content go to your
+     | agency" without giving them the address the agency had typed in, which
+     | is the white-label promise stopping one field short.
+     */
+    allowWhiteLabel();
+
+    BrandingSetting::factory()->create([
+        'tenant_id' => $this->tenant->getKey(),
+        'app_name' => 'Bright Digital',
+        'support_email' => 'hello@brightdigital.test',
+    ]);
+
+    $portalUser = CustomerPortalUser::factory()->create([
+        'tenant_id' => $this->tenant->getKey(),
+    ]);
+
+    $this->actingAs($portalUser, 'customer')
+        ->get(route('portal.dashboard'))
+        ->assertOk()
+        ->assertSee('hello@brightdigital.test');
+});
+
+it('never shows the platform address to a branded agency client', function (): void {
+    /*
+     | The case that matters: the agency IS branded -- their name is on the
+     | page -- and they have not set a support address. Falling back to the
+     | platform's would put the vendor's address directly beneath the
+     | agency's name, which is precisely what they are paying not to happen.
+     |
+     | With no branding row at all the portal is unbranded anyway, and the
+     | configured address is the right one; that is a different case.
+     */
+    allowWhiteLabel();
+
+    BrandingSetting::factory()->create([
+        'tenant_id' => $this->tenant->getKey(),
+        'app_name' => 'Bright Digital',
+        'support_email' => null,
+    ]);
+
+    $portalUser = CustomerPortalUser::factory()->create([
+        'tenant_id' => $this->tenant->getKey(),
+    ]);
+
+    $this->actingAs($portalUser, 'customer')
+        ->get(route('portal.dashboard'))
+        ->assertOk()
+        ->assertSee('Bright Digital')
+        ->assertSee('go to your agency')
+        ->assertDontSee((string) config('branding.support_email'));
 });

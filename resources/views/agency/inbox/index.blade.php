@@ -7,6 +7,34 @@
      | this screen exists.
     --}}
 
+    {{--
+     | Replies that never reached the network.
+     |
+     | Each one was already marked as failed inside its own thread, and only
+     | there -- so finding one meant opening the thread you had no reason to
+     | open. An agency believing it answered a customer it did not answer is
+     | worse than not having replied, because nobody is waiting.
+    --}}
+    @if ($unsentCount > 0 && ! $unsent)
+        <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            {{ trans_choice(
+                '{1} One reply never reached the network.|[2,*] :count replies never reached the network.',
+                $unsentCount,
+                ['count' => $unsentCount],
+            ) }}
+            <a href="{{ route('agency.inbox.index', ['unsent' => 1]) }}" class="ml-1 underline">
+                Show them
+            </a>
+        </div>
+    @endif
+
+    @if ($unsent)
+        <div class="mb-4 flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <span>Showing threads with a reply that never sent, whatever their status.</span>
+            <a href="{{ route('agency.inbox.index') }}" class="underline">Back to the inbox</a>
+        </div>
+    @endif
+
     <form method="GET" class="mb-6 flex flex-wrap items-end gap-3">
         <div>
             <label for="status" class="block text-sm font-medium">Show</label>

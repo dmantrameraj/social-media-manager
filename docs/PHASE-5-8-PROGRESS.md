@@ -14,11 +14,11 @@ phase.
 
 | Gate | Result |
 |---|---|
-| Test suite | **823 passing**, 2193 assertions |
+| Test suite | **915 passing**, 2411 assertions |
 | Static analysis | PHPStan level 5, 0 errors |
 | Formatting | Pint clean |
 | Schema | 30 migrations |
-| Test files | 59 |
+| Test files | 65 |
 | Scheduled commands | 5 (§7) |
 
 ---

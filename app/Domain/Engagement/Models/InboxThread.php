@@ -46,7 +46,6 @@ use Illuminate\Support\Carbon;
  * always present -- the same reason PostTarget documents its own relations
  * this way rather than leaving every caller to null-check something that
  * cannot be null.
- *
  * @property-read SocialAccount $socialAccount
  * @property-read Customer|null $customer
  * @property-read User|null $assignee
@@ -86,6 +85,7 @@ class InboxThread extends Model
         ];
     }
 
+    /** @return HasMany<InboxMessage, $this> */
     public function messages(): HasMany
     {
         return $this->hasMany(InboxMessage::class)->orderBy('posted_at');

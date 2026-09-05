@@ -90,7 +90,20 @@
     </main>
 
     <footer class="mx-auto max-w-4xl px-4 pb-10 text-xs text-slate-500 sm:px-6">
-        Signed in as {{ $user?->name }}. Questions about your content go to your agency.
+        Signed in as {{ $user?->name }}.
+        {{--
+          The agency's own support address, when they have set one. Telling a
+          client their questions go "to your agency" without giving them the
+          address the agency typed into the branding screen is the whole
+          white-label promise stopping one field short.
+        --}}
+        @if ($branding->supportEmail() !== '')
+            Questions about your content go to
+            <a href="mailto:{{ $branding->supportEmail() }}"
+               class="underline">{{ $branding->supportEmail() }}</a>.
+        @else
+            Questions about your content go to your agency.
+        @endif
     </footer>
 </div>
 

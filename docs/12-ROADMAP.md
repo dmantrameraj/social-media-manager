@@ -219,12 +219,59 @@ minutes), assignment, status, internal notes, and reply queued through the provi
       portal answers on it. Portal-only by design: the agency application stays on the
       platform hostname, so a misconfigured client domain cannot take an agency offline.
       TLS provisioning is deployment work, not application code — see `11-DEPLOYMENT.md`.
-- [ ] **Reseller system** — not started
+- [ ] **Reseller system** — not started, and deliberately so. `TenantType`'s own
+      docblock records the decision: "Reseller exists so the hierarchy column
+      (tenants.parent_tenant_id) has meaning from day one and a reseller tier can be
+      inserted later without a data migration. No reseller behaviour ships in V1." The
+      column and the enum case are the whole V1 deliverable; building the tier now would
+      contradict that decision rather than complete it.
 - [ ] **Social CRM** — not started
 - [ ] **WhatsApp Business API** — not started; a separate messaging architecture, **not**
       another post provider
 - [ ] **Threads, Google Business Profile, Pinterest, TikTok, Reddit, Quora** — not started,
       and correctly behind the first real provider
+
+---
+
+---
+
+## Gaps closed after the phase they belonged to
+
+A recurring failure in this repository deserves its own section, because it is
+the one a checklist cannot catch: **a mechanism built, tested, and one wire
+short of reachable.** A checklist counts what was BUILT, which is exactly what
+this pattern hides. Everything below was fully implemented, covered by tests,
+and impossible to reach from the product.
+
+They were found by sweeping for methods, scopes and permissions with no call
+site — not by reading the checklist, which said all of them were done.
+
+| What existed | What was missing | Phase it belonged to |
+|---|---|---|
+| `OAuthStateService`, provider contract, every adapter capability | Any route or controller. A social account could only be created by hand | 2 |
+| `social_accounts.max` on every plan | Anything that counted them | 1 |
+| `Tenant::permitsPublishing()` | Any caller. Suspended agencies kept publishing | 1 |
+| Token refresh service | Anything that drove it | 2 |
+| AI feature registry | A path from it to a screen | 4 |
+| Client portal comments | A screen where the agency could read them | 6 |
+| `post_metrics`, `SupportsAnalytics` | A collector, a table, a screen | 5 |
+| `branding_settings` | A reader, then a writer | 8 |
+| `domains` | Anything attached to it | 8 |
+| `reports.generate`, `reports.share` | Anything they governed | 5 |
+| `PostStatus::isEditable()` | Any caller. A post could never be edited, so `Rejected` was a dead end | 3 |
+| No reschedule route | The calendar rendered posts nobody could move | 3 |
+| `posts.scheduled_per_month` | A usage counter — it read `0` with a "Phase 3" note | 1 |
+| `posts.bulk_import` | Anything it governed | 3 |
+| `login_histories`, and an index built for the query | Any screen. A security log only the database could see | 1 |
+| `social_app_credentials`, `toSafeArray()`, `social_credentials.manage`, `oauth_states.social_app_credential_id`, `OAuthContext::$clientId` | A screen, and anything that selected a credential. Bring-your-own credentials — a stated differentiator — was a schema comment | 2 |
+| `MediaStatus::countsTowardStorage()`, `AccountStatus::countsTowardLimit()` | Callers. Both quotas restated the rule as a literal list | 1 |
+| `BrandingResolver::supportEmail()`, `secondaryColor()` | Any template. An agency filled in fields nothing read | 8 |
+| `InboxMessage::scopeUndelivered()` | Any caller. A reply that never sent was visible only inside its own thread | 7 |
+
+**How to find the next one.** Sweep for public methods, query scopes and
+permission keys with no call site outside their own file. Most hits are
+Eloquent relations read as properties — ignore those. What is left is either
+dead code that should go, or a feature that was built and never connected.
 
 ---
 

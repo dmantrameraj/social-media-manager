@@ -98,13 +98,32 @@ final class BrandingResolver
             ?? (string) config('branding.colors.secondary', '#0f172a');
     }
 
+    /**
+     * Who a client should write to.
+     *
+     * The one branding field that does NOT fall back to the platform value
+     * once white labelling is active.
+     *
+     * A colour falling back is invisible. An address is not: showing the
+     * platform's support address to an agency's client tells them who the
+     * real vendor is, which is precisely what the agency is paying not to
+     * happen. An empty string is the honest answer -- the portal then says
+     * "your agency" instead of naming somebody the client has no relationship
+     * with.
+     *
+     * Without the entitlement there is no white labelling to protect, the
+     * portal IS the platform's own product, and the configured address is
+     * correct.
+     */
     public function supportEmail(): string
     {
-        $override = $this->overrides()?->support_email;
+        $overrides = $this->overrides();
 
-        return $override !== null && trim($override) !== ''
-            ? $override
-            : (string) config('branding.support_email', '');
+        if ($overrides !== null) {
+            return trim((string) $overrides->support_email);
+        }
+
+        return (string) config('branding.support_email', '');
     }
 
     /** Initials used as a placeholder mark before a logo is uploaded. */

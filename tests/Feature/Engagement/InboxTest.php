@@ -256,3 +256,76 @@ it('never shows another agency conversations', function (): void {
         ->assertOk()
         ->assertDontSee('Somebody Else');
 });
+
+// ------------------------------------------------- replies that never landed
+
+/** A thread carrying one outbound message in a given delivery state. */
+function threadWithReply(DeliveryStatus $status, array $threadOverrides = []): InboxThread
+{
+    $thread = InboxThread::factory()
+        ->forAccount(test()->account)
+        ->create($threadOverrides);
+
+    InboxMessage::factory()->inThread($thread)->create([
+        'direction' => MessageDirection::Outbound->value,
+        'delivery_status' => $status->value,
+    ]);
+
+    return $thread;
+}
+
+it('tells the agency when a reply never reached the network', function (): void {
+    /*
+     | A failed reply was marked as such inside its own thread and nowhere
+     | else, so the only way to find one was to open the thread you had no
+     | reason to open. An agency believing it answered a customer it did not
+     | answer is worse than never having replied: nobody is waiting.
+     */
+    threadWithReply(DeliveryStatus::Failed);
+
+    asAgencyUser($this->owner)
+        ->get(route('agency.inbox.index'))
+        ->assertOk()
+        ->assertSee('One reply never reached the network.');
+});
+
+it('finds an unsent reply on a thread that has been closed', function (): void {
+    // A failed reply on a thread somebody has since closed is exactly the one
+    // that gets lost, so this view ignores the status filter deliberately.
+    $thread = threadWithReply(DeliveryStatus::Failed, ['status' => InboxStatus::Closed->value]);
+
+    asAgencyUser($this->owner)
+        ->get(route('agency.inbox.index', ['unsent' => 1]))
+        ->assertOk()
+        ->assertSee($thread->participant_name);
+});
+
+it('says nothing when every reply landed', function (): void {
+    threadWithReply(DeliveryStatus::Delivered);
+
+    asAgencyUser($this->owner)
+        ->get(route('agency.inbox.index'))
+        ->assertOk()
+        ->assertDontSee('never reached the network');
+});
+
+it('does not count another agency unsent replies', function (): void {
+    [$rival] = provisionTenant('Rival Agency');
+    actingForTenant($rival);
+
+    $rivalBrand = Customer::factory()->create(['tenant_id' => $rival->getKey()]);
+    $rivalAccount = SocialAccount::factory()->forCustomer($rivalBrand)->create();
+    $rivalThread = InboxThread::factory()->forAccount($rivalAccount)->create();
+
+    InboxMessage::factory()->inThread($rivalThread)->create([
+        'direction' => MessageDirection::Outbound->value,
+        'delivery_status' => DeliveryStatus::Failed->value,
+    ]);
+
+    actingForTenant($this->tenant);
+
+    asAgencyUser($this->owner)
+        ->get(route('agency.inbox.index'))
+        ->assertOk()
+        ->assertDontSee('never reached the network');
+});
