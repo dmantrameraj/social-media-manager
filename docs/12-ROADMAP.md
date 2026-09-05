@@ -269,6 +269,7 @@ site — not by reading the checklist, which said all of them were done.
 | `MediaStatus::countsTowardStorage()`, `AccountStatus::countsTowardLimit()` | Callers. Both quotas restated the rule as a literal list | 1 |
 | `BrandingResolver::supportEmail()`, `secondaryColor()` | Any template. An agency filled in fields nothing read | 8 |
 | `InboxMessage::scopeUndelivered()` | Any caller. A reply that never sent was visible only inside its own thread | 7 |
+| `is_super_admin`, guarded "settable only through an audited console command" | That command. The whole `/admin` surface — 38 passing tests of working screens — could be reached only by editing the database by hand | 1 |
 
 **How to find the next one.** Sweep for public methods, query scopes and
 permission keys with no call site outside their own file. Most hits are

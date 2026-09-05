@@ -354,7 +354,16 @@ above, which was written when that half of the work landed early.)*
 - [x] Impersonation with banner, restrictions, timeout and both audit entries
 - [x] Audit log viewer; failed jobs viewer
 - [x] **No admin screen exposes agency credentials or tokens** — asserted by test
-- [x] Tests: non-admins get 403 on every `/admin` route; impersonation restrictions hold
+- [x] Tests: non-admins get **404** on every `/admin` route — this line used to say 403.
+      The middleware aborts 404 deliberately and the test asserts 404: whether an admin
+      surface exists is not something an unauthorised visitor gets told
+- [x] Impersonation restrictions hold
+- [x] **A way to become a Super Admin** — `platform:super-admin`, added 2026-09-05.
+      Every box above was ticked while `is_super_admin` could only be set by editing the
+      database by hand: the model guards the column against mass assignment and promised
+      "an audited console command" that was never written. Each screen above worked and
+      was tested; nobody could reach any of them on a fresh install. A checklist counts
+      what was BUILT, which is exactly what that hides
 
 ## Step 13 — Foundation UI ✅ *(complete)*
 
