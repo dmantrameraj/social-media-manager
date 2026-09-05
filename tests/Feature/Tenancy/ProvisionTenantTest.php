@@ -9,7 +9,10 @@ use App\Domain\Tenancy\Enums\TenantStatus;
 use App\Domain\Tenancy\Exceptions\MissingOwnerRoleException;
 use App\Domain\Tenancy\Models\Tenant;
 use App\Domain\Tenancy\Services\ProvisionTenantService;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function (): void {
     seedPermissions();
@@ -142,4 +145,61 @@ it('aborts and rolls back when the owner role template is missing', function ():
 
     expect(Tenant::query()->count())->toBe($before)
         ->and(AiCreditAccount::query()->acrossTenants()->count())->toBe(0);
+});
+
+// ------------------------------------------------- a catalogue left behind
+
+it('provisions a tenant even when the permission catalogue is stale', function (): void {
+    /*
+     | Found in the running application, not by a test.
+     |
+     | config/permissions.php gained the Phase 7 inbox permissions and nobody
+     | re-ran the seeder, so the permissions table was three rows short of what
+     | the role templates name. Every attempt to create an agency died on a raw
+     | spatie PermissionDoesNotExist -- a stack trace, in front of a platform
+     | administrator, with nothing actionable in it.
+     |
+     | The suite never caught it because seedPermissions() re-syncs on every
+     | test, so the catalogue is always current here and never in a deployment
+     | that forgot its seeder.
+     */
+    seedPermissions();
+
+    DB::table('permissions')
+        ->whereIn('name', ['inbox.view', 'inbox.reply', 'inbox.manage'])
+        ->delete();
+
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $owner = User::factory()->create();
+
+    $tenant = app(ProvisionTenantService::class)->execute($owner, 'Late Deploy Agency');
+
+    expect($tenant->exists)->toBeTrue();
+
+    // Healed, not skipped: the role that needs them actually has them.
+    $registrar = app(PermissionRegistrar::class);
+    $registrar->setPermissionsTeamId($tenant->getKey());
+
+    $manager = Role::query()
+        ->where('team_id', $tenant->getKey())
+        ->where('name', 'Manager')
+        ->sole();
+
+    expect($manager->hasPermissionTo('inbox.view'))->toBeTrue();
+});
+
+it('says so when it had to repair the catalogue', function (): void {
+    // Healing silently would hide a deploy that skipped its seeder until the
+    // next thing depending on ordering broke instead.
+    Log::spy();
+
+    seedPermissions();
+    DB::table('permissions')->where('name', 'inbox.view')->delete();
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    app(ProvisionTenantService::class)->execute(User::factory()->create(), 'Noisy Agency');
+
+    Log::shouldHaveReceived('warning')
+        ->withArgs(fn (string $message): bool => str_contains($message, 'permission catalogue was out of date'));
 });

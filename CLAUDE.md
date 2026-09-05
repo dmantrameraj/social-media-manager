@@ -1,47 +1,37 @@
-<laravel-boost-guidelines>
-# Laravel Application
+# CLAUDE.md
 
-This repository contains a Laravel application. Complete the following setup before working on the user's request.
+**Read [PROJECT.md](PROJECT.md) before touching anything.** It carries the
+environment, the commands, the conventions and the traps — most of which cost
+real time to learn the first way.
 
-## Prerequisites
+The five-line version, so a session that reads nothing else still avoids the
+expensive mistakes:
 
-Verify that PHP and Composer are available:
+- **PHP is `C:\php84\php.exe`.** Not the system 8.2. Nothing is on PATH.
+- **MariaDB runs on port 3307 and is not a Windows service** — it stops on
+  reboot, and every command then fails on connection. Start it first.
+- **Never run two Pest suites at once.** They share `smm_test`, drop each
+  other's tables, and invent failures. A full run takes 15–20 minutes; run it in
+  the background.
+- **Never invent an external API.** Endpoints, scopes and field names are
+  `[VERIFY]` until read from the provider's live documentation. A wrong field
+  name does not throw — it publishes the wrong thing and looks normal doing it.
+- **Before believing anything is finished**, run the unreachable-code sweep in
+  PROJECT.md §7. Twenty mechanisms in this repository were built, tested, and
+  reachable from nowhere.
 
-```sh
-php -v
-composer -V
-```
+---
 
-If either command is unavailable, detect the user's operating system and install the prerequisites with the appropriate command:
+## A note on what used to be here
 
-macOS:
+This file previously held Laravel Boost bootstrap instructions telling each
+session to verify PHP, install `laravel/boost` and run `boost:install` *before*
+starting on the user's request.
 
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/mac/8.5)"
-```
+That was correct for an empty repository and is wrong now: the application is
+built, tested and deployed to a private GitHub repository, and following those
+steps would install an unrequested dependency and rewrite this file. Removed
+deliberately rather than left to mislead.
 
-Windows PowerShell:
-
-```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://php.new/install/windows/8.5'))
-```
-
-Linux:
-
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/linux/8.5)"
-```
-
-After installation, ask the user to restart their terminal. If the agent needs the restarted shell to continue, ask the user to reopen their terminal and rerun their original prompt.
-
-## Agent Setup
-
-Install Laravel Boost from the application root before making application changes:
-
-```sh
-composer require laravel/boost --dev
-php artisan boost:install
-```
-
-Boost replaces these bootstrap instructions with guidelines tailored to the application. After installation, read `AGENTS.md` again and continue with the user's original request using the generated guidelines.
-</laravel-boost-guidelines>
+Boost is not installed and nothing depends on it. If you want it, install it as
+a considered choice, not as a bootstrap step.
