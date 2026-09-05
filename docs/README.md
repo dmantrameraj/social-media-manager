@@ -35,12 +35,24 @@ Both are blocked on live provider documentation, per the rule below about `[VERI
 
 ## What actually got built
 
+**Completion reports** exist for the phases that meet every exit criterion. A phase with
+an open criterion has a progress report instead, which says what is missing and why —
+writing a completion report for it would be the document lying.
+
 | Document | Covers |
 |---|---|
+| [Phase 0 Completion](PHASE-0-COMPLETION.md) | Architecture and documentation |
 | [Phase 1 Completion](PHASE-1-COMPLETION.md) | Foundation: tenancy, auth, RBAC, media, audit, entitlements |
-| [Phases 2 & 3 Progress](PHASE-2-3-PROGRESS.md) | Social connection and publishing foundations |
-| [Phase 4 Progress](PHASE-4-PROGRESS.md) | AI features, Brand Brain, credit ledger, autopilot |
-| [Phases 5–8 Progress](PHASE-5-8-PROGRESS.md) | Analytics, collaboration, inbox, white-label, domains |
+| [Phase 3 Completion](PHASE-3-COMPLETION.md) | Publishing engine, composer, approvals, scheduling, import |
+| [Phase 4 Completion](PHASE-4-COMPLETION.md) | AI features, Brand Brain, credit ledger, autopilot |
+| [Phase 6 Completion](PHASE-6-COMPLETION.md) | Post conversations, notification preferences, approval history |
+| [Phases 2 & 3 Progress](PHASE-2-3-PROGRESS.md) | Social connection foundations — **Phase 2 is not complete** |
+| [Phase 4 Progress](PHASE-4-PROGRESS.md) | Superseded by the Phase 4 completion report |
+| [Phases 5–8 Progress](PHASE-5-8-PROGRESS.md) | Analytics, inbox, white-label, domains — **5, 7 and 8 are not complete** |
+
+Phases 2, 5, 7 and 8 have no completion report. Two are blocked on the same thing (no real
+provider adapter), one is missing PDF export, and one is partial by design. See
+[the roadmap](12-ROADMAP.md).
 
 The `PHASE-1-STEP-*.md` files record individual steps of Phase 1 and are mostly of
 historical interest.

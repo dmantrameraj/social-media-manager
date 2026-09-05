@@ -31,6 +31,7 @@ Deliverables: the 13 documents in `/docs`, the ERD, and the Phase 1 checklist.
 - [x] Shared-hosting → VPS migration path defined
 - [x] Phase 1 checklist produced
 - [x] **Human review and approval** — given by the user directing Phase 1 to start
+- [x] `PHASE-0-COMPLETION.md` written
 
 ---
 
@@ -125,7 +126,7 @@ recurring post architecture.
       lands as a draft: a CSV that could schedule would be a way to put content past the
       approval gate by uploading a file. Closes `posts.bulk_import`, which had been in the
       permission catalogue since Step 5 governing nothing.
-- [ ] `PHASE-3-COMPLETION.md` written — see `PHASE-2-3-PROGRESS.md`
+- [x] `PHASE-3-COMPLETION.md` written
 
 Also closed here, though it belongs to Phase 1's entitlement work:
 **`posts.scheduled_per_month` is now enforced.** Its usage counter was hardcoded to 0 with
@@ -153,7 +154,7 @@ stable.
 - [x] Swapping the provider implementation leaves feature tests green
 - [x] Autopilot cannot bypass approval gates — output is always a draft, and the brand
       approval requirement carries through
-- [ ] `PHASE-4-COMPLETION.md` written — see `PHASE-4-PROGRESS.md`
+- [x] `PHASE-4-COMPLETION.md` written
 
 Unlike the social providers, the AI provider is real: `AnthropicProvider` is written
 against the published PHP SDK and runs in production.
@@ -194,6 +195,7 @@ approval history; notification preferences per user; brand-scoped assignment.
 - [x] The agency can read client comments (this was the gap that motivated the phase)
 - [x] Notification preferences honoured by `PostEventDispatcher`
 - [x] Brand-scoped assignment enforced in policies, not just in the UI
+- [x] `PHASE-6-COMPLETION.md` written
 
 ---
 
