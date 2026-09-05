@@ -33,8 +33,11 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             PlanSeeder::class,
 
-            // Refuses to run in production on its own.
+            // Both refuse to run in production on their own, and both are
+            // additive: the content seeder fills only the brands it created
+            // and never touches one somebody made themselves.
             DemoTenantSeeder::class,
+            DemoContentSeeder::class,
         ]);
     }
 }

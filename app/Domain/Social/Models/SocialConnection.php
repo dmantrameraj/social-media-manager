@@ -72,6 +72,7 @@ class SocialConnection extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    /** @return BelongsTo<SocialAppCredential, $this> */
     public function credential(): BelongsTo
     {
         return $this->belongsTo(SocialAppCredential::class, 'social_app_credential_id');

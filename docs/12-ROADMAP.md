@@ -61,7 +61,7 @@ covers it for now. See `PHASE-1-CHECKLIST.md` Step 9.
 
 ---
 
-## Phase 2 — Social Connections ⚠ *(framework complete, no real provider)*
+## Phase 2 — Social Connections ⚠ *(Meta built and documentation-verified; unproven live)*
 
 Provider interface and registry; capability model; per-tenant credential management; OAuth
 framework with state and PKCE; connection and account models; account discovery and
@@ -71,10 +71,12 @@ Facebook → Instagram → *stabilise* → LinkedIn → X → YouTube.
 **Exit criteria**
 - [x] OAuth state tests pass (single use, tenant-bound, expiry, redirect validation)
 - [x] Tokens are encrypted; a serialisation test proves they never appear in output
-- [ ] **Facebook Page and Instagram Business connect, discover and assign to a brand** —
-      the whole flow works end to end against the fake provider: connect, callback,
-      destination picker, assignment, disconnect. No Meta adapter exists, so nothing
-      connects to Meta.
+- [~] **Facebook Page and Instagram Business connect, discover and assign to a brand** —
+      both adapters are built, registered in production, and verified against Meta's own
+      documentation (Graph API v25.0, read 2026-09-05). **Not yet exercised against the
+      live API**, which needs a developer app and App Review. Text and image posting to a
+      Page, and image and carousel posting to Instagram, are implemented; video, Reels,
+      Insights and comment sync are deliberately refused rather than guessed at.
 - [x] Token refresh works; failure sets `needs_reconnect` and notifies — driven hourly by
       `social:refresh-tokens`, verified against the fake provider
 - [x] Reconnect updates the existing connection and preserves account assignments
@@ -84,12 +86,17 @@ Facebook → Instagram → *stabilise* → LinkedIn → X → YouTube.
       state row and read back at callback, so a code is exchanged against the app that
       issued it. No stored value is ever rendered back, and audit entries record which
       fields changed rather than what they changed to.
-- [ ] `/docs/providers/{provider}.md` exists per provider, dated — nothing to document yet
-- [ ] `PHASE-2-COMPLETION.md` written — `PHASE-2-3-PROGRESS.md` stands in until a real
-      provider closes the gate
+- [x] `/docs/providers/{provider}.md` exists per provider, dated — `facebook.md` and
+      `instagram.md`, each recording what was verified, when, and what was deliberately
+      left out
+- [ ] `PHASE-2-COMPLETION.md` written — `PHASE-2-3-PROGRESS.md` stands in. The gate is
+      one real post to one real Page, and nobody has made one.
 
-**This is the phase that gates launch.** Everything above the adapter is built and proven;
-the adapter itself must be written against live Meta documentation.
+**The remaining work on this phase is no longer code.** It is a Meta developer app, App
+Review for `pages_manage_posts`, `pages_manage_engagement` and
+`instagram_content_publish`, an `APP_URL` Meta can reach over HTTPS, and one real post to
+prove the whole chain. Until that happens the adapters are documentation-correct and
+unproven, and that distinction matters more than the tick would.
 
 > Do **not** start all five providers in parallel. Meta must be stable before LinkedIn
 > begins — Meta is the most complex and will teach the abstraction what it is missing.
@@ -176,8 +183,10 @@ every six hours, bounded per run; the agency dashboard; CSV export; secure share
 - [ ] **PDF and Excel export** — CSV only. Excel opens it (BOM included for that reason);
       a PDF needs a rendering dependency and a designed layout, and was not worth adding
       before a real provider produces real numbers.
-- [ ] **Provider analytics adapters** — blocked with the rest of Phase 2. `SupportsAnalytics`
-      exists and the fake provider implements it.
+- [ ] **Provider analytics adapters** — the Meta adapters do not implement
+      `SupportsAnalytics`: the Insights endpoints were not verified, and a wrong metric
+      mapping is invisible. This is now a specific, small piece of work rather than
+      blocked behind the whole phase.
 
 Prerequisite noted in Phase 0 still stands: **VPS migration is likely required here** —
 analytics polling adds sustained background load that a shared-hosting worker window will
@@ -207,7 +216,9 @@ minutes), assignment, status, internal notes, and reply queued through the provi
 - [x] Threads and messages, normalised across providers, tenant-scoped
 - [x] Assign, status, internal note, reply
 - [x] Structurally separate from publishing — shares only the OAuth and provider layers
-- [ ] **Comments and messages from a real network** — same block as Phase 2
+- [ ] **Comments and messages from a real network** — the Meta adapters do not implement
+      `SupportsInbox`. The comment endpoints were not verified, so it is a specific piece
+      of work rather than blocked behind the whole phase.
 - [ ] Lead conversion hooks — waits on the CRM below
 
 ---

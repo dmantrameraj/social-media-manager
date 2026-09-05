@@ -35,6 +35,7 @@ use App\Http\Controllers\Agency\SocialCredentialController;
 use App\Http\Controllers\Agency\SuspendedController;
 use App\Http\Controllers\Agency\TeamController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\ProviderMediaController;
 use App\Http\Controllers\SharedReportController;
 use App\Http\Controllers\TwoFactorEnrolmentController;
 use App\Http\Controllers\Webhook\RazorpayWebhookController;
@@ -389,6 +390,28 @@ Route::middleware(['auth:web'])->group(function (): void {
 Route::get('/r/{token}', SharedReportController::class)
     ->middleware('throttle:30,1')
     ->name('reports.shared');
+
+/*
+|--------------------------------------------------------------------------
+| Provider media fetch
+|--------------------------------------------------------------------------
+|
+| Instagram will not accept image bytes for a post: it takes an `image_url`
+| and fetches it from its own servers, with no session. Every other media
+| route here requires a signed-in agency or portal user, and a provider is
+| neither -- so this is the one image URL a social network can reach.
+|
+| `signed` IS the authorisation, and it covers the expiry, so neither the
+| media nor the deadline can be edited. The URL is minted per publish and
+| lives for minutes; see ProviderMediaUrl.
+|
+| Throttled for the same reason as the share link above: the signature space
+| is far too large to guess, but an endpoint that serves a client's
+| unpublished creative should not also be a fast way to probe.
+*/
+Route::get('/m/{media}', ProviderMediaController::class)
+    ->middleware(['signed', 'throttle:60,1'])
+    ->name('media.provider');
 
 Route::post('/webhooks/razorpay', RazorpayWebhookController::class)
     ->middleware('throttle:100,1')

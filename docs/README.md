@@ -14,6 +14,9 @@ this and a product an agency could pay for, and neither is a design problem:
 
 Both are blocked on live provider documentation, per the rule below about `[VERIFY]` markers.
 
+**Start here if you are picking this up:** [HANDOVER.md](HANDOVER.md) — how to run it,
+what was built, what remains and why, and what to do next.
+
 ## Read in this order
 
 | # | Document | Read when |

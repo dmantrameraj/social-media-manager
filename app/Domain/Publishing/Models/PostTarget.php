@@ -26,6 +26,8 @@ use Illuminate\Support\Carbon;
  * @property int $tenant_id
  * @property TargetStatus $status
  * @property ?Carbon $scheduled_at
+ * @property ?Carbon $published_at
+ * @property ?Carbon $dispatched_at
  * @property ?Carbon $locked_at
  * @property ?Carbon $next_attempt_at
  * @property ?array<string, mixed> $meta Per-platform fields set at scheduling

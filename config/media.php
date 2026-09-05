@@ -84,4 +84,13 @@ return [
         'campaign_assets' => 'Campaign Assets',
     ],
 
+    /*
+     | How long a provider has to fetch an image we handed it.
+     |
+     | Instagram fetches within seconds of being given the URL. Minutes is
+     | generous; an hour would be a public link to a client unpublished
+     | creative left lying about for an hour.
+     */
+    'provider_url_ttl' => (int) env('MEDIA_PROVIDER_URL_TTL', 600),
+
 ];

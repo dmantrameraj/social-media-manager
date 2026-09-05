@@ -45,6 +45,34 @@ return [
         'native_scheduling', 'deletion', 'analytics', 'comments',
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Meta Graph API
+    |--------------------------------------------------------------------------
+    |
+    | Shared by the Facebook Page and Instagram Business adapters, which are the
+    | same API with different node types.
+    |
+    | The VERSION is configuration rather than a constant because Meta retires
+    | versions on a published schedule: pinning it in code turns a calendar
+    | event into an outage, and moving it should be a deployment decision taken
+    | after somebody has read the changelog.
+    |
+    */
+    'meta' => [
+        'graph_version' => env('META_GRAPH_VERSION', 'v25.0'),
+        'timeout' => (int) env('META_TIMEOUT', 20),
+
+        /*
+         | Instagram processes an upload before it can be published. Bounded,
+         | because a job that waits indefinitely on a queue belonging to
+         | somebody else is a worker that never comes back. Exceeding the bound
+         | is retryable and does not consume an attempt.
+         */
+        'container_poll_attempts' => (int) env('META_CONTAINER_POLL_ATTEMPTS', 8),
+        'container_poll_seconds' => (int) env('META_CONTAINER_POLL_SECONDS', 3),
+    ],
+
     'providers' => [
 
         'facebook' => [
@@ -65,9 +93,23 @@ return [
                     'video_max_bytes' => null,  // [VERIFY]
                     'video_max_seconds' => null, // [VERIFY]
                 ],
-                'required_scopes' => ['pages_manage_posts', 'pages_read_engagement'], // [VERIFY]
+                /*
+                 | VERIFIED 2026-09-05 against the Pages API posts reference.
+                 | pages_manage_engagement is required for publishing a post as
+                 | well, and the person must additionally hold CREATE_CONTENT
+                 | on the Page itself -- which discoverAccounts() filters on,
+                 | because a granted scope is not the same as a Page role.
+                 */
+                'required_scopes' => [
+                    'pages_manage_posts',
+                    'pages_manage_engagement',
+                    'pages_read_engagement',
+                ],
                 'feature_scopes' => [
-                    'analytics' => ['read_insights'],   // [VERIFY]
+                    // VERIFIED 2026-09-05: the insights endpoints require
+                    // read_insights, a Page access token, and the ANALYZE task
+                    // on the Page. The scope alone is not enough.
+                    'analytics' => ['read_insights'],
                 ],
             ],
         ],
@@ -88,13 +130,19 @@ return [
                 ],
                 'limits' => [
                     'text_max' => 2200,          // [VERIFY]
-                    'images_max' => 10,          // [VERIFY]
+                    'images_max' => 10,          // VERIFIED 2026-09-05: up to 10 carousel items
                     'hashtags_max' => 30,        // [VERIFY]
                     'video_max_seconds' => 90,   // [VERIFY]
                     'aspect_ratio_min' => 0.8,   // [VERIFY]
                     'aspect_ratio_max' => 1.91,  // [VERIFY]
                 ],
-                'required_scopes' => ['instagram_content_publish'], // [VERIFY]
+                /*
+                 | VERIFIED 2026-09-05 against the Instagram content-publishing
+                 | reference. instagram_basic is required alongside the publish
+                 | scope: without it the account cannot even be discovered, so
+                 | publishing alone leaves a destination nobody can select.
+                 */
+                'required_scopes' => ['instagram_basic', 'instagram_content_publish'],
                 'feature_scopes' => [],
             ],
         ],

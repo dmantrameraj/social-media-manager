@@ -15,6 +15,9 @@ use App\Domain\Platform\Contracts\DnsLookup;
 use App\Domain\Platform\Services\SystemDnsLookup;
 use App\Domain\Social\ProviderRegistry;
 use App\Domain\Social\Providers\Fake\FakeProvider;
+use App\Domain\Social\Providers\Meta\FacebookPageProvider;
+use App\Domain\Social\Providers\Meta\InstagramProvider;
+use App\Domain\Social\Providers\Meta\MetaGraphClient;
 use App\Support\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +58,7 @@ class AppServiceProvider extends ServiceProvider
         $this->configureDatabase();
         $this->configureAuthEvents();
         $this->registerPlatformGates();
+        $this->registerMetaGraphClient();
         $this->registerSocialProviders();
         $this->registerAiProvider();
         $this->registerSessionHandler();
@@ -111,9 +115,35 @@ class AppServiceProvider extends ServiceProvider
      * classification, idempotent recovery -- can be proven without a live API
      * or platform review.
      */
+    /**
+     * One Graph client for both Meta adapters, built from configuration.
+     *
+     * Bound rather than newed inside each adapter so the API version is
+     * resolved once and cannot drift between the two.
+     */
+    private function registerMetaGraphClient(): void
+    {
+        $this->app->singleton(MetaGraphClient::class, static fn (): MetaGraphClient => MetaGraphClient::make());
+    }
+
     private function registerSocialProviders(): void
     {
         $registry = $this->app->make(ProviderRegistry::class);
+
+        /*
+         | Meta, in production as well as everywhere else.
+         |
+         | Until these two lines existed the registry held nothing but a fake
+         | outside production and nothing at all inside it, so the product
+         | could not publish to a single network however complete the layers
+         | above the adapter were.
+         |
+         | Both are resolved from the container rather than constructed, so
+         | MetaGraphClient is shared and the Instagram adapter can be handed
+         | the Facebook one it delegates its OAuth to.
+         */
+        $registry->register('facebook', FacebookPageProvider::class);
+        $registry->register('instagram', InstagramProvider::class);
 
         if (! $this->app->isProduction()) {
             $registry->register('fake', FakeProvider::class);

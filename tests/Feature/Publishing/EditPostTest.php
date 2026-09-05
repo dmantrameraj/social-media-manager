@@ -241,3 +241,55 @@ it('offers the edit screen only for an editable post', function (): void {
         ->get(route('agency.posts.edit', editablePost(PostStatus::Published)))
         ->assertRedirect();
 });
+
+// ------------------------------------------------------- what it used to say
+
+it('keeps what the post used to say', function (): void {
+    /*
+     | An edit replaces words a manager or a client agreed to. Without a
+     | version there is no way to answer "what did they approve?" three weeks
+     | later, when the post on the feed and the post in the database no longer
+     | match.
+     */
+    $post = editablePost();
+
+    asAgencyUser($this->owner)
+        ->put(route('agency.posts.update', $post), ['body' => 'The new words.']);
+
+    $version = $post->versions()->sole();
+
+    expect($version->version)->toBe(1)
+        ->and($version->body)->toBe('The old words.')
+        ->and($version->meta['title'])->toBe('Before');
+});
+
+it('keeps only superseded states, never the current one', function (): void {
+    $post = editablePost();
+
+    asAgencyUser($this->owner)->put(route('agency.posts.update', $post), ['body' => 'Second.']);
+    asAgencyUser($this->owner)->put(route('agency.posts.update', $post), ['body' => 'Third.']);
+
+    // Current text lives on the post row, so the two can never disagree about
+    // which is authoritative.
+    expect($post->refresh()->body)->toBe('Third.')
+        ->and($post->versions()->pluck('body')->all())->toBe(['Second.', 'The old words.']);
+});
+
+it('writes no version when the edit was refused', function (): void {
+    $post = editablePost(PostStatus::Published);
+
+    asAgencyUser($this->owner)
+        ->put(route('agency.posts.update', $post), ['body' => 'Too late.']);
+
+    expect($post->versions()->count())->toBe(0);
+});
+
+it('will not let history be rewritten', function (): void {
+    $post = editablePost();
+
+    asAgencyUser($this->owner)->put(route('agency.posts.update', $post), ['body' => 'Changed.']);
+
+    // Append-only, like post_approvals and login_histories. History that can
+    // be edited is not history.
+    $post->versions()->sole()->update(['body' => 'Something else entirely.']);
+})->throws(RuntimeException::class);

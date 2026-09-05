@@ -90,6 +90,16 @@ class Post extends Model
     }
 
     /**
+     * What this post used to say, newest superseded state first.
+     *
+     * @return HasMany<PostVersion, $this>
+     */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(PostVersion::class)->orderByDesc('version');
+    }
+
+    /**
      * Media attached to this post, in the order the agency arranged it.
      *
      * Ordered in the relation rather than at each call site: a carousel shown

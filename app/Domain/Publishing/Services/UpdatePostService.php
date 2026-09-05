@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Domain\Publishing\Services;
 
 use App\Domain\Audit\AuditLogger;
+use App\Domain\Identity\Models\User;
 use App\Domain\Media\Models\Media;
 use App\Domain\Publishing\Enums\PostStatus;
 use App\Domain\Publishing\Enums\TargetStatus;
 use App\Domain\Publishing\Exceptions\PostNotEditable;
 use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostTarget;
+use App\Domain\Publishing\Models\PostVersion;
 use App\Domain\Publishing\Workflow\PostStatusMachine;
 use App\Domain\Social\Models\SocialAccount;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -69,7 +71,20 @@ final class UpdatePostService
 
         $wasRejected = $post->status === PostStatus::Rejected;
 
-        DB::transaction(function () use ($post, $title, $body, $scheduledAt, $accounts, $media): void {
+        DB::transaction(function () use ($post, $title, $body, $scheduledAt, $accounts, $media, $actor): void {
+            /*
+             | Keep what it used to say, BEFORE overwriting it.
+             |
+             | An edit replaces words a manager or a client agreed to. Without
+             | this there is no way to answer "what did they actually approve?"
+             | three weeks later, when the post on the feed and the post in the
+             | database no longer match.
+             |
+             | Superseded states only: the current text stays on the post row,
+             | so the two can never disagree about which is authoritative.
+             */
+            $this->keepPreviousVersion($post, $actor);
+
             $post->title = $title;
             $post->body = $body;
             $post->content_type = Post::deriveContentType($media);
@@ -112,6 +127,32 @@ final class UpdatePostService
         }
 
         return $post->refresh();
+    }
+
+    /**
+     * Append the state this edit is about to replace.
+     *
+     * Version numbers come from a count rather than a sequence: the table is
+     * unique on (post_id, version), so two concurrent edits would collide
+     * rather than silently interleave, and a collision here is the correct
+     * outcome -- the second edit should be retried against fresh text, not
+     * quietly filed under a number it invented.
+     */
+    private function keepPreviousVersion(Post $post, ?Authenticatable $actor): void
+    {
+        PostVersion::query()->forceCreate([
+            'tenant_id' => $post->tenant_id,
+            'post_id' => $post->getKey(),
+            'version' => $post->versions()->count() + 1,
+            'body' => $post->body,
+            'meta' => [
+                'title' => $post->title,
+                'status' => $post->status->value,
+                'scheduled_at' => $post->scheduled_at?->toIso8601String(),
+            ],
+            'created_by_user_id' => $actor instanceof User ? $actor->getKey() : null,
+            'created_at' => now(),
+        ]);
     }
 
     /**
