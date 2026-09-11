@@ -126,6 +126,16 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
         ->name('posts.reschedule');
 
     /*
+     | Sending a failed destination again.
+     |
+     | Closes posts.retry, which has been in the catalogue since Step 5
+     | governing nothing -- the engine could always retry and no human could
+     | ask it to.
+     */
+    Route::post('content/{post}/targets/{target}/retry', [PostController::class, 'retryTarget'])
+        ->name('posts.targets.retry');
+
+    /*
      | The agency half of the conversation. PostComment carries is_internal for
      | exactly this, and only the client could reach it: a client could comment
      | on work awaiting their approval and nobody at the agency would see it.

@@ -109,7 +109,7 @@
         </div>
     @endif
 
-    @if ($sessions->count() > 1)
+    @if (count($sessions) > 1)
         {{--
           | The action somebody actually wants when they think an account is
           | compromised: one click, everything else gone, without having to work

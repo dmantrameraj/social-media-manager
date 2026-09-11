@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Agency;
 
 use App\Domain\Audit\AuditLogger;
-use App\Domain\Audit\Models\LoginHistory;
+use App\Domain\Audit\Services\AccountSecurityService;
 use App\Http\Controllers\Controller;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * The devices signed in to this account, and how to sign them out.
@@ -28,64 +26,25 @@ use Illuminate\Support\Facades\DB;
  */
 final class SessionController extends Controller
 {
-    public function __construct(private readonly AuditLogger $audit) {}
+    /** The agency guard. Every query here is scoped by it as well as by id. */
+    private const GUARD = 'web';
+
+    public function __construct(
+        private readonly AuditLogger $audit,
+        private readonly AccountSecurityService $security,
+    ) {}
 
     public function index(Request $request): View
     {
-        $current = $request->session()->getId();
-
-        $sessions = DB::table('sessions')
-            ->where('user_id', $request->user()->getKey())
-            // The guard matters: ids overlap between `users` and
-            // `customer_portal_users`, so user_id alone would list a client's
-            // devices alongside a staff member's.
-            ->where('guard', 'web')
-            ->orderByDesc('last_activity')
-            ->get()
-            ->map(fn (object $row): array => [
-                'id' => $row->id,
-                'is_current' => $row->id === $current,
-                'ip_address' => $row->ip_address,
-                'device' => $this->describe((string) ($row->user_agent ?? '')),
-                'last_active' => $row->last_activity,
-            ]);
-
         return view('agency.sessions.index', [
             'title' => 'Signed-in devices',
-            'sessions' => $sessions,
-            'activity' => $this->recentActivity($request),
+            'sessions' => $this->security->sessions(
+                $request->user(),
+                self::GUARD,
+                $request->session()->getId(),
+            ),
+            'activity' => $this->security->recentActivity($request->user()),
         ]);
-    }
-
-    /**
-     * This account's recent authentication events.
-     *
-     * login_histories has been written on every sign-in, failure, lockout and
-     * password reset since Phase 1 and read by nothing -- the migration even
-     * carries an index built for this exact query that no code ran. A security
-     * log only the database can see protects nobody: noticing "signed in from
-     * a country I have never visited" is the point, and only the account
-     * holder can notice it.
-     *
-     * Scoped by the morph TYPE as well as the id. Ids overlap between `users`
-     * and `customer_portal_users`, which is the same collision the guard column
-     * on `sessions` exists to prevent one line above -- without the type, a
-     * staff member would be shown a client's sign-in history.
-     *
-     * @return Collection<int, LoginHistory>
-     */
-    private function recentActivity(Request $request): Collection
-    {
-        return LoginHistory::query()
-            ->where('authenticatable_type', $request->user()::class)
-            ->where('authenticatable_id', $request->user()->getKey())
-            ->latest('created_at')
-            ->latest('id')
-            // Bounded. A busy account accumulates thousands of these, and a
-            // screen somebody opens because they are worried is the wrong
-            // place to be slow.
-            ->limit((int) config('audit.login_history_shown', 20))
-            ->get();
     }
 
     /**
@@ -99,19 +58,7 @@ final class SessionController extends Controller
             return back()->with('error', 'That is this device. Use log out instead.');
         }
 
-        /*
-         | Scoped to the caller's own id AND guard, so a session id guessed or
-         | copied from elsewhere matches nothing. The id is the session's own
-         | primary key and arrives from a form, which is exactly the input that
-         | must never be trusted to identify a row on its own.
-         */
-        $deleted = DB::table('sessions')
-            ->where('id', $session)
-            ->where('user_id', $request->user()->getKey())
-            ->where('guard', 'web')
-            ->delete();
-
-        if ($deleted === 0) {
+        if (! $this->security->endSession($request->user(), self::GUARD, $session)) {
             return back()->with('error', 'That session has already ended.');
         }
 
@@ -129,11 +76,11 @@ final class SessionController extends Controller
      */
     public function destroyOthers(Request $request): RedirectResponse
     {
-        $count = DB::table('sessions')
-            ->where('user_id', $request->user()->getKey())
-            ->where('guard', 'web')
-            ->where('id', '!=', $request->session()->getId())
-            ->delete();
+        $count = $this->security->endOtherSessions(
+            $request->user(),
+            self::GUARD,
+            $request->session()->getId(),
+        );
 
         if ($count === 0) {
             return back()->with('status', 'No other devices were signed in.');
@@ -147,39 +94,5 @@ final class SessionController extends Controller
         );
 
         return back()->with('status', "Signed out {$count} other ".str('device')->plural($count).'.');
-    }
-
-    /**
-     * A readable device name from a user agent string.
-     *
-     * Deliberately coarse. The point is "is one of these not me?", which needs
-     * only enough to recognise your own devices -- and a full UA parser is a
-     * dependency plus a fingerprinting surface for a line of text.
-     */
-    private function describe(string $userAgent): string
-    {
-        if ($userAgent === '') {
-            return 'Unknown device';
-        }
-
-        $browser = match (true) {
-            str_contains($userAgent, 'Edg/') => 'Edge',
-            str_contains($userAgent, 'OPR/') => 'Opera',
-            str_contains($userAgent, 'Firefox/') => 'Firefox',
-            str_contains($userAgent, 'Chrome/') => 'Chrome',
-            str_contains($userAgent, 'Safari/') => 'Safari',
-            default => 'Browser',
-        };
-
-        $platform = match (true) {
-            str_contains($userAgent, 'Windows') => 'Windows',
-            str_contains($userAgent, 'iPhone') || str_contains($userAgent, 'iPad') => 'iOS',
-            str_contains($userAgent, 'Android') => 'Android',
-            str_contains($userAgent, 'Mac OS') => 'macOS',
-            str_contains($userAgent, 'Linux') => 'Linux',
-            default => 'Unknown platform',
-        };
-
-        return "{$browser} on {$platform}";
     }
 }

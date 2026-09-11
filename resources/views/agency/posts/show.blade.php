@@ -85,16 +85,90 @@
                                 <div class="shrink-0 text-right">
                                     <p>{{ ucfirst(str_replace('_', ' ', $target->status->value)) }}</p>
                                     @if ($target->last_error_message)
-                                        {{-- Plain-language cause; raw provider detail stays
-                                             behind posts.retry. --}}
+                                        {{-- Plain-language cause. Raw provider detail is in
+                                             the attempt history below, behind posts.retry. --}}
                                         <p class="text-xs text-rose-700">{{ $target->last_error_message }}</p>
                                     @endif
+
+                                    {{--
+                                      Offered only for a FAILED destination.
+                                      "Needs verification" deliberately gets no
+                                      button: nobody knows whether that one
+                                      published, and a blind retry is how a
+                                      client ends up with two copies.
+                                    --}}
+                                    @can('posts.retry')
+                                        @if ($target->status === \App\Domain\Publishing\Enums\TargetStatus::Failed)
+                                            <form method="POST"
+                                                  action="{{ route('agency.posts.targets.retry', [$post, $target]) }}"
+                                                  class="mt-1">
+                                                @csrf
+                                                <button type="submit"
+                                                        class="rounded-lg border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50">
+                                                    Send again
+                                                </button>
+                                            </form>
+                                        @endif
+
+                                        @if ($target->attempts > 0)
+                                            <p class="mt-1 text-xs text-slate-500">
+                                                {{ trans_choice('{1} :count attempt|[2,*] :count attempts', $target->attempts, ['count' => $target->attempts]) }}
+                                            </p>
+                                        @endif
+                                    @endcan
                                 </div>
                             </li>
                         @endforeach
                     </ul>
                 @endif
             </section>
+
+            {{--
+              Why it failed, in the provider's own words.
+
+              publication_attempts has recorded every try since Phase 3 and
+              nothing read it, so "that post failed" was the whole story
+              available to somebody trying to fix it. Behind posts.retry
+              because response_snapshot carries provider detail that is useful
+              to whoever is recovering the post and noise to everyone else.
+            --}}
+            @can('posts.retry')
+                @if ($attempts->isNotEmpty())
+                    <section class="rounded-xl border border-slate-200 bg-white p-6">
+                        <h2 class="text-sm font-semibold">Delivery attempts</h2>
+
+                        <ol class="mt-3 space-y-3 text-sm">
+                            @foreach ($attempts as $attempt)
+                                <li class="border-l-2 border-slate-200 pl-3">
+                                    <p class="text-slate-700">
+                                        Attempt {{ $attempt->attempt_no }}
+                                        <span class="text-slate-500">
+                                            · {{ str_replace('_', ' ', $attempt->outcome?->value ?? 'in progress') }}
+                                            @if ($attempt->http_status)
+                                                · HTTP {{ $attempt->http_status }}
+                                            @endif
+                                        </span>
+                                    </p>
+
+                                    @if ($attempt->error_message)
+                                        <p class="text-xs text-rose-700">{{ $attempt->error_message }}</p>
+                                    @endif
+
+                                    <p class="text-xs text-slate-500">
+                                        {{ $attempt->started_at?->diffForHumans() }}
+                                        @if ($attempt->error_class)
+                                            · {{ $attempt->error_class }}
+                                        @endif
+                                        @if ($attempt->error_code)
+                                            · {{ $attempt->error_code }}
+                                        @endif
+                                    </p>
+                                </li>
+                            @endforeach
+                        </ol>
+                    </section>
+                @endif
+            @endcan
 
             @if ($post->approvals->isNotEmpty())
                 <section class="rounded-xl border border-slate-200 bg-white p-6">

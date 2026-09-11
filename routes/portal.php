@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Portal\DashboardController;
+use App\Http\Controllers\Portal\DeviceController;
 use App\Http\Controllers\Portal\MediaController;
 use App\Http\Controllers\Portal\PasswordResetController;
 use App\Http\Controllers\Portal\PostController;
@@ -73,6 +74,24 @@ Route::prefix('portal')->middleware('portal.host')->name('portal.')->group(funct
     Route::middleware('portal')->group(function (): void {
 
         Route::get('/', DashboardController::class)->name('dashboard');
+
+        /*
+         | The client's own devices and account history.
+         |
+         | The agency side has had this since Phase 1 and the portal has not,
+         | which is the wrong way round: a client's account is the one the
+         | agency does not control, and if a brand approver's password leaks,
+         | everything that account can see -- unpublished campaigns, approval
+         | conversations, a month of planned content -- goes with it.
+         |
+         | No permission gate. These are the signed-in client's OWN sessions;
+         | identity is the authorisation, as it is on the agency side.
+         */
+        Route::get('security', [DeviceController::class, 'index'])->name('devices');
+        Route::delete('security/others', [DeviceController::class, 'destroyOthers'])
+            ->name('devices.destroy-others');
+        Route::delete('security/{session}', [DeviceController::class, 'destroy'])
+            ->name('devices.destroy');
 
         Route::get('content', [PostController::class, 'index'])->name('posts.index');
         Route::get('content/{post}', [PostController::class, 'show'])->name('posts.show');

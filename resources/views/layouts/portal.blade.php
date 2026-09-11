@@ -44,6 +44,12 @@
                     Content
                 </a>
 
+                <a href="{{ route('portal.devices') }}"
+                   @if (request()->routeIs('portal.devices*')) aria-current="page" @endif
+                   class="{{ request()->routeIs('portal.devices*') ? 'font-medium text-slate-900' : 'text-slate-600 hover:text-slate-900' }}">
+                    Security
+                </a>
+
                 <form method="POST" action="{{ route('portal.logout') }}">
                     @csrf
                     <button type="submit" class="text-slate-600 hover:text-slate-900">Sign out</button>

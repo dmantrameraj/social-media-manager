@@ -378,8 +378,19 @@ it('authorises inside every agency controller action', function (): void {
              | user, and the body must never reach a model statically. It is
              | Model::find($id) that lets a request name a row belonging to
              | somebody else; $request->user()->notifications() cannot.
+             |
+             | `user()` rather than `user()->`, because the user may be HANDED
+             | to a collaborator -- $this->security->sessions($request->user(),
+             | ...) -- rather than dereferenced here. The session screens do
+             | exactly that, so the query lives in one service the agency and
+             | the portal share instead of being written twice and drifting.
+             |
+             | This does not weaken the rule. The action must still name the
+             | authenticated user, and the static-reach check below is what
+             | actually stops a request identifying somebody else's row: a body
+             | that ignored the user entirely would match neither.
              */
-            $viaUser = str_contains($body, 'user()->')
+            $viaUser = str_contains($body, 'user()')
                 || str_contains($body, '$user->');
 
             $reachesModelDirectly = str_contains($body, '::query(')

@@ -77,6 +77,15 @@ return [
         'max_rows' => (int) env('PUBLISHING_IMPORT_MAX_ROWS', 500),
     ],
 
+    /*
+     | How many delivery attempts the post screen shows.
+     |
+     | Bounded because a target retried for a week has a lot of rows, and this
+     | screen is opened by somebody who is already annoyed that a post did not
+     | go out.
+     */
+    'attempts_shown' => (int) env('PUBLISHING_ATTEMPTS_SHOWN', 20),
+
     'recurrence_horizon_days' => 60,
 
 ];

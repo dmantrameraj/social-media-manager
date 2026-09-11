@@ -10,11 +10,14 @@ use App\Domain\Media\Services\SignedMediaUrl;
 use App\Domain\Publishing\Enums\PostStatus;
 use App\Domain\Publishing\Enums\TargetStatus;
 use App\Domain\Publishing\Exceptions\CannotReschedule;
+use App\Domain\Publishing\Exceptions\CannotRetry;
 use App\Domain\Publishing\Exceptions\PostNotEditable;
 use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostComment;
 use App\Domain\Publishing\Models\PostTarget;
+use App\Domain\Publishing\Models\PublicationAttempt;
 use App\Domain\Publishing\Services\ReschedulePostService;
+use App\Domain\Publishing\Services\RetryPostTargetService;
 use App\Domain\Publishing\Services\UpdatePostService;
 use App\Domain\Publishing\Workflow\PostStatusMachine;
 use App\Domain\Social\Models\SocialAccount;
@@ -196,6 +199,26 @@ final class PostController
             // The composer never sets status directly; it asks the machine
             // what is legal from here.
             'allowedTransitions' => $this->machine->allowedFrom($post->status),
+
+            /*
+             | Why a destination failed, in the provider's own words.
+             |
+             | publication_attempts has recorded every try since Phase 3 and
+             | nothing read it, so "that post failed" was the whole story
+             | available to whoever had to fix it.
+             |
+             | Loaded only for holders of posts.retry -- the permission that
+             | has always been documented as gating this -- and bounded,
+             | because a target that has been retried for a week has a lot of
+             | rows and this screen is opened when somebody is already annoyed.
+             */
+            'attempts' => $request->user()->can('posts.retry')
+                ? PublicationAttempt::query()
+                    ->whereIn('post_target_id', $post->targets->modelKeys())
+                    ->orderByDesc('id')
+                    ->limit((int) config('publishing.attempts_shown', 20))
+                    ->get()
+                : collect(),
         ]);
     }
 
@@ -299,6 +322,36 @@ final class PostController
         return redirect()
             ->route('agency.posts.show', $post)
             ->with('status', 'Changes saved.');
+    }
+
+    /**
+     * Send a failed destination again.
+     *
+     * posts.retry has been in the permission catalogue since Step 5 governing
+     * nothing: the engine could always retry, and no human could ask it to. A
+     * post that failed showed one sentence and sat there.
+     */
+    public function retryTarget(
+        Request $request,
+        Post $post,
+        PostTarget $target,
+        RetryPostTargetService $retries,
+    ): RedirectResponse {
+        $request->user()->can('posts.retry') || abort(403);
+        $this->assertReachable($request, $post);
+
+        // The target must belong to THIS post. Route model binding resolves
+        // the two independently, so without this a valid target id from
+        // another post -- or another brand -- would be accepted.
+        abort_unless($target->post_id === $post->getKey(), 404);
+
+        try {
+            $retries->execute($target, $request->user());
+        } catch (CannotRetry $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('status', 'Queued to publish again.');
     }
 
     /**
