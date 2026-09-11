@@ -25,6 +25,39 @@ return [
     /*
      | Tenant permissions, grouped for the role-editor UI.
      */
+    /*
+    |--------------------------------------------------------------------------
+    | Removed deliberately, 2026-09-11
+    |--------------------------------------------------------------------------
+    |
+    | Three keys were removed after a sweep found they governed nothing. A dead
+    | permission is not harmless: it sits in a role definition implying a
+    | capability nobody has, and the next person to read the catalogue believes
+    | the feature exists.
+    |
+    |   posts.delete          A post is CANCELLED, never destroyed.
+    |                         PostStatusMachine has Cancelled as a terminal
+    |                         state and posts use SoftDeletes, because deleting
+    |                         one would take its approval trail and publication
+    |                         history with it -- and PostApproval is the
+    |                         evidence of who agreed to what. Reinstate this
+    |                         only alongside a real hard-delete decision.
+    |
+    |   social_accounts.assign
+    |                         Connecting an account and assigning it to a brand
+    |                         turned out to be one action, not two.
+    |                         SocialAccountController::store does both under
+    |                         social_accounts.connect plus a per-brand check.
+    |
+    |   ai.view_usage         Agencies can already see AI usage: the credit
+    |                         balance is on the dashboard and the billing
+    |                         screen, under billing.view.
+    |
+    | audit_logs.view was on the same list and is NOT removed -- it now governs
+    | the agency activity log, which is what it always described.
+    |
+    */
+
     'tenant' => [
 
         'customers' => [
@@ -40,7 +73,6 @@ return [
             'posts.view',
             'posts.create',
             'posts.update',
-            'posts.delete',
             'posts.publish',
             'posts.approve_internal',
             'posts.schedule',
@@ -60,7 +92,6 @@ return [
             'social_accounts.view',
             'social_accounts.connect',
             'social_accounts.disconnect',
-            'social_accounts.assign',
             'social_credentials.manage',
         ],
 
@@ -78,7 +109,6 @@ return [
         'ai' => [
             'ai.use',
             'ai.manage_brand_brain',
-            'ai.view_usage',
         ],
 
         'team' => [
@@ -166,14 +196,14 @@ return [
 
         'Manager' => [
             'customers.view', 'customers.view_all', 'customers.update',
-            'posts.view', 'posts.create', 'posts.update', 'posts.delete',
+            'posts.view', 'posts.create', 'posts.update',
             'posts.publish', 'posts.approve_internal', 'posts.schedule', 'posts.retry',
             // Planning a month of content is a manager's job, and they already
             // create and schedule posts one at a time. A Content Creator does
             // not get it: the blast radius of a bad file is larger.
             'posts.bulk_import',
             'media.view', 'media.upload', 'media.update', 'media.delete', 'media.manage_folders',
-            'social_accounts.view', 'social_accounts.assign',
+            'social_accounts.view',
             'inbox.view', 'inbox.reply', 'inbox.manage',
             'ai.use', 'ai.manage_brand_brain',
             'team.view',

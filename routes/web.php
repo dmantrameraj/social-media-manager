@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\PlanController as AdminPlanController;
 use App\Http\Controllers\Admin\TenantController as AdminTenantController;
 use App\Http\Controllers\Agency\AiController;
 use App\Http\Controllers\Agency\AnalyticsController;
+use App\Http\Controllers\Agency\AuditLogController as AgencyAuditLogController;
 use App\Http\Controllers\Agency\BillingController;
 use App\Http\Controllers\Agency\BrandBrainController;
 use App\Http\Controllers\Agency\BrandController;
@@ -262,6 +263,17 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
      | The signed-in user's own devices. sessions.guard was added for this in
      | the first migration and stayed null until a guard-aware handler wrote it.
      */
+    /*
+     | The agency's own audit trail.
+     |
+     | Every action staff take has been recorded since Phase 1 and the only
+     | screen reading any of it was /admin/audit, behind platform.audit.view --
+     | so a Super Admin could read any agency's trail and the agency could not
+     | read its own. audit_logs.view has been in the catalogue since Step 5
+     | governing nothing.
+     */
+    Route::get('audit', [AgencyAuditLogController::class, 'index'])->name('audit');
+
     Route::get('sessions', [SessionController::class, 'index'])->name('sessions.index');
     Route::delete('sessions/others', [SessionController::class, 'destroyOthers'])
         ->name('sessions.destroy-others');

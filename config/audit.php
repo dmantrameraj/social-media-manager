@@ -84,4 +84,11 @@ return [
 
     'login_history_shown' => (int) env('AUDIT_LOGIN_HISTORY_SHOWN', 20),
 
+    /*
+     | Entries per page on the agency activity log. Paginated because an
+     | established workspace accumulates these steadily and nobody reads a
+     | thousand rows at once.
+     */
+    'per_page' => (int) env('AUDIT_PER_PAGE', 50),
+
 ];
