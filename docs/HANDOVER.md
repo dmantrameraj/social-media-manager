@@ -149,8 +149,9 @@ real numbers.
 
 - **`post_versions`** has a table, no model and no reader — created for revision history
   that was never built. Either build it or drop the table.
-- **Recurring posts** are provided for in config (`recurrence_horizon_days`) and not
-  implemented.
+- ~~**Recurring posts**~~ — built. Rules, a nightly materialiser
+  (`publishing:materialise-recurring`) and screens at `/app/content/recurring`. Rules carry
+  no media: every occurrence is a text post.
 - **The client portal has no signed-in-devices screen.** The agency side does.
 - **No `@mention`** in post conversations, so a thread notifies everyone or no one.
 

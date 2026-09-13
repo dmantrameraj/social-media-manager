@@ -108,7 +108,8 @@ unproven, and that distinction matters more than the tick would.
 Unified composer with per-platform overrides; provider validation; approval workflow and
 state machine; scheduling with timezones; content calendar; queued publishing with claim
 locking; retry and error classification; failure UI; publication history; CSV bulk import;
-recurring post architecture.
+recurring posts — rules, a nightly materialiser bounded by a 60-day horizon, and screens
+at `/app/content/recurring`.
 
 **Exit criteria**
 - [x] All `06-PUBLISHING-ENGINE.md` §12 tests pass
@@ -281,6 +282,7 @@ site — not by reading the checklist, which said all of them were done.
 | `BrandingResolver::supportEmail()`, `secondaryColor()` | Any template. An agency filled in fields nothing read | 8 |
 | `InboxMessage::scopeUndelivered()` | Any caller. A reply that never sent was visible only inside its own thread | 7 |
 | `is_super_admin`, guarded "settable only through an audited console command" | That command. The whole `/admin` surface — 38 passing tests of working screens — could be reached only by editing the database by hand | 1 |
+| `publishing.recurrence_horizon_days` | The rules, the materialiser and the screens. A config key sized a window for a feature that did not exist | 3 |
 
 **How to find the next one.** Sweep for public methods, query scopes and
 permission keys with no call site outside their own file. Most hits are

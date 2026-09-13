@@ -306,6 +306,9 @@ it('keeps the tenant-owned model registry in sync with the schema', function ():
         // Join tables and platform-owned records: no Eloquent model of their
         // own, or deliberately unscoped.
         'tenant_user', 'customer_user', 'customer_portal_user_customer',
+        // Reached only through RecurringPostRule, which is registered and
+        // scoped; the pivot has no model of its own.
+        'recurring_post_rule_accounts',
         'invitations', 'invoice_lines', 'coupon_redemptions',
         'subscriptions', 'subscription_overrides', 'invoices', 'payments',
         'ai_credit_accounts', 'ai_credit_transactions',

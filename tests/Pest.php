@@ -17,6 +17,7 @@ use App\Domain\Media\Models\MediaFolder;
 use App\Domain\Platform\Models\Domain;
 use App\Domain\Publishing\Models\Post;
 use App\Domain\Publishing\Models\PostTarget;
+use App\Domain\Publishing\Models\RecurringPostRule;
 use App\Domain\Social\Models\SocialAccount;
 use App\Domain\Social\Models\SocialConnection;
 use App\Domain\Tenancy\Enums\MembershipStatus;
@@ -188,6 +189,7 @@ function tenantOwnedModels(): array
         PostTarget::class,
         BrandBrain::class,
         AutopilotSetting::class,
+        RecurringPostRule::class,
     ];
 }
 

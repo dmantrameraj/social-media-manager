@@ -13,6 +13,7 @@
         ['route' => 'agency.brands.index', 'label' => 'Brands', 'permission' => 'customers.view'],
         ['route' => 'agency.calendar', 'label' => 'Calendar', 'permission' => 'posts.view'],
         ['route' => 'agency.posts.create', 'label' => 'Create post', 'permission' => 'posts.create'],
+        ['route' => 'agency.posts.recurring.index', 'label' => 'Recurring', 'permission' => 'posts.view'],
         ['route' => 'agency.posts.import', 'label' => 'Import', 'permission' => 'posts.bulk_import'],
         ['route' => 'agency.media.index', 'label' => 'Media', 'permission' => 'media.view'],
         ['route' => 'agency.ai.index', 'label' => 'AI studio', 'permission' => 'ai.use'],

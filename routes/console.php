@@ -68,6 +68,22 @@ Schedule::command('publishing:dispatch-due')
     ->runInBackground();
 
 /*
+ | Recurring rules, extended one day further into the future each night.
+ |
+ | Early, and before the dispatcher has much to do: a rule whose occurrence is
+ | at 07:00 needs its post to exist before then. Daily is the right cadence
+ | because the horizon is measured in days and moves by exactly one per run.
+ |
+ | Idempotent by construction -- posts are unique on (rule, occurrence_date) --
+ | so a retried or overlapping run cannot duplicate content. withoutOverlapping
+ | anyway, because the loser would only burn the tick.
+ */
+Schedule::command('publishing:materialise-recurring')
+    ->dailyAt('02:10')
+    ->withoutOverlapping(30)
+    ->runInBackground();
+
+/*
  | Every ten minutes: a reservation stranded by a dead worker costs a tenant
  | real spending power, so it should not sit for an hour.
  */

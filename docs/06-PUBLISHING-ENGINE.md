@@ -306,9 +306,53 @@ creation under a `job_batch`. Partial success is normal: valid rows are created,
 rows are reported with row numbers. The batch is never all-or-nothing, because a single bad
 row in a 500-row file should not discard the other 499.
 
-**Recurring posts** — `recurring_post_rules` (RRULE-shaped) with a materialiser that
-generates concrete posts a bounded window ahead (`config('publishing.recurrence_horizon_days')`).
-Never generate infinite future rows.
+**Recurring posts** — BUILT. `recurring_post_rules` (RRULE-shaped) with a materialiser that
+generates concrete posts a bounded window ahead (`config('publishing.recurrence_horizon_days')`,
+60 days). Never generates infinite future rows.
+
+A rule is a template plus a cadence and **publishes nothing itself**. Each occurrence becomes an
+ordinary post that takes the same workflow, approval gate and plan limit as one somebody typed —
+scheduling goes through `PostStatusMachine`, so the `posts.scheduled_per_month` entitlement is
+enforced in the one place every path to `scheduled` passes through. A rule that published directly
+would be a second publishing path, and the second path is always the one that forgets a rule the
+first one enforces.
+
+| Piece | Where |
+| --- | --- |
+| Rule model, cadence summary, `materialisable()` scope | `app/Domain/Publishing/Models/RecurringPostRule.php` |
+| Frequencies (daily / weekly / monthly) | `app/Domain/Publishing/Enums/RecurrenceFrequency.php` |
+| The materialiser | `app/Domain/Publishing/Services/MaterialiseRecurringPostsService.php` |
+| Nightly sweep, 02:10 | `publishing:materialise-recurring` |
+| Screens | `/app/content/recurring`, gated on `posts.view` / `posts.create` / `posts.update` |
+
+Decisions worth not re-litigating:
+
+- **RRULE-*shaped*, not an RRULE.** Frequency, interval, and which days. Parsing the full RFC 5545
+  grammar means supporting `BYSETPOS` and leap-second edge cases nobody asked for, and the stored
+  form should be readable in a database client by whoever is debugging a post that went out on the
+  wrong day.
+- **`posts` is unique on `(recurring_post_rule_id, occurrence_date)`.** That is what makes
+  materialising idempotent — a command that runs twice, or a horizon that moves, cannot create the
+  same post again.
+- **`nullOnDelete`, not cascade.** Deleting a rule is a statement about the future; the posts it
+  already produced are real content, some of it published.
+- **Cadence arithmetic runs on bare UTC dates, never on local wall-clock time.** Two local midnights
+  either side of a DST boundary are 23 or 25 hours apart, so a signed float `diffInDays` returns
+  6.9583 for what is plainly a week and `% 7` truncates that to 6 — a rule silently skipping a week
+  in March. The timezone is applied in exactly one place: turning an occurrence date plus
+  `time_of_day` into a UTC `scheduled_at`. Regression test: *"does not skip a week across a
+  daylight-saving boundary"*.
+- **Never backfills, and skips today when its hour has gone.** A post dated in the past is one the
+  dispatcher publishes on its next sweep.
+- **A brand requiring client approval gets drafts**, the same constraint CSV import and autopilot
+  are held to.
+- **Weekdays are ISO-8601 (1 = Monday … 7 = Sunday)**, matching `dayOfWeekIso`. Not
+  `Carbon::SUNDAY`, which is 0 and matches no day. The form request validates `1..7` and refuses a
+  weekly rule with no days — a rule that saves cleanly, looks active and generates nothing is the
+  worst outcome this feature has.
+
+Known limitation: **rules carry no media.** Every occurrence is a text post; images are added to
+the individual drafts afterwards. Stated rather than left for somebody to discover.
 
 **Evergreen** — a content pool per brand with a reuse cooldown so the same item is not
 re-posted within N days.

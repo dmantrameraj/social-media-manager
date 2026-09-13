@@ -86,6 +86,18 @@ return [
      */
     'attempts_shown' => (int) env('PUBLISHING_ATTEMPTS_SHOWN', 20),
 
-    'recurrence_horizon_days' => 60,
+    /*
+     | How far ahead a recurring rule is turned into real posts.
+     |
+     | The bound is the point of the feature: a rule with no end date is normal,
+     | and materialising one eagerly would write calendar rows for ever. Sixty
+     | days is far enough that a client reviewing next month's content sees it
+     | all, and short enough that editing a rule does not mean revisiting a
+     | year of posts it already made.
+     |
+     | Raising it costs rows; lowering it is safe, but posts already generated
+     | beyond the new horizon stay where they are. They are real content.
+     */
+    'recurrence_horizon_days' => (int) env('PUBLISHING_RECURRENCE_HORIZON_DAYS', 60),
 
 ];

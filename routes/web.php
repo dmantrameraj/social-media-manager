@@ -28,6 +28,7 @@ use App\Http\Controllers\Agency\OAuthController;
 use App\Http\Controllers\Agency\PostCommentController;
 use App\Http\Controllers\Agency\PostController;
 use App\Http\Controllers\Agency\PostImportController;
+use App\Http\Controllers\Agency\RecurringPostController;
 use App\Http\Controllers\Agency\ReportShareController;
 use App\Http\Controllers\Agency\SessionController;
 use App\Http\Controllers\Agency\SettingsController;
@@ -100,6 +101,27 @@ Route::middleware('agency')->prefix('app')->name('agency.')->group(function (): 
      | Closes posts.bulk_import, which had been in the permission catalogue
      | since Step 5 governing nothing.
      */
+    /*
+     | Recurring rules. Declared BEFORE content/{post} for the same reason
+     | import is: Laravel matches in declaration order, and "recurring" would
+     | otherwise be read as a post id.
+     |
+     | A rule publishes nothing itself -- MaterialiseRecurringPostsService
+     | turns it into ordinary posts a bounded window ahead, and those take the
+     | same approval gate and plan limit as any other. Gated on the existing
+     | posts.* permissions rather than new catalogue keys.
+     */
+    Route::get('content/recurring', [RecurringPostController::class, 'index'])
+        ->name('posts.recurring.index');
+    Route::get('content/recurring/create', [RecurringPostController::class, 'create'])
+        ->name('posts.recurring.create');
+    Route::post('content/recurring', [RecurringPostController::class, 'store'])
+        ->name('posts.recurring.store');
+    Route::post('content/recurring/{rule}/toggle', [RecurringPostController::class, 'toggle'])
+        ->name('posts.recurring.toggle');
+    Route::delete('content/recurring/{rule}', [RecurringPostController::class, 'destroy'])
+        ->name('posts.recurring.destroy');
+
     Route::get('content/import', [PostImportController::class, 'create'])->name('posts.import');
     Route::post('content/import', [PostImportController::class, 'store'])->name('posts.import.store');
     Route::get('content/import/template', [PostImportController::class, 'template'])
