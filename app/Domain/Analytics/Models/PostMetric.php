@@ -25,6 +25,12 @@ use Illuminate\Support\Carbon;
  * -- by which time re-polling is impossible because the API has aged the data
  * out. Storage is cheap; a year of unrecoverable history is not.
  *
+ * Relations documented for the same reason PostTarget documents its own:
+ * post_target_id and social_account_id are non-nullable and cascade, so those
+ * are always present. customer_id likewise. Leaving them undocumented makes
+ * every caller null-check something that cannot be null -- and hides the ones
+ * that genuinely can.
+ *
  * @property int $tenant_id
  * @property int $customer_id
  * @property int $post_target_id
@@ -40,13 +46,6 @@ use Illuminate\Support\Carbon;
  * @property int|null $video_views
  * @property array<string, mixed>|null $raw
  * @property Carbon $collected_at
- *
- * Relations documented for the same reason PostTarget documents its own:
- * post_target_id and social_account_id are non-nullable and cascade, so those
- * are always present. customer_id likewise. Leaving them undocumented makes
- * every caller null-check something that cannot be null -- and hides the ones
- * that genuinely can.
- *
  * @property-read PostTarget|null $target
  * @property-read SocialAccount|null $socialAccount
  * @property-read Customer|null $customer
